@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HR Exit Process</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="{{ url_for('static', filename='images/Logo.png') }}">
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+:root {
+  --primary: #0ea5e9;
+  --dark-nav: #0f172a;
+  --bg: #e8f4f8;
+  --card-shadow: 0 2px 12px rgba(0,0,0,0.09);
+}
+body { background: var(--bg); font-family: system-ui, -apple-system, sans-serif; margin: 0; }
+
+/* ── TOPNAV ── */
+.top-navbar {
+  background: var(--dark-nav); padding: 0 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 62px; position: sticky; top: 0; z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.top-navbar .brand { display: flex; align-items: center; gap: 10px; }
+.top-navbar .brand img { height: 38px; }
+.top-navbar .brand-text { color: #fff; font-weight: 700; font-size: 1.1rem; letter-spacing: 0.5px; }
+.top-navbar .brand-text span { color: var(--primary); }
+.top-navbar .nav-center { display: flex; align-items: center; gap: 6px; }
+.top-navbar .nav-pill {
+  color: #cbd5e1; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem;
+  text-decoration: none; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+}
+.top-navbar .nav-pill:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+.top-navbar .nav-pill.active { background: var(--primary); color: #fff; }
+.top-navbar .nav-right { display: flex; align-items: center; gap: 14px; }
+.profile-chip {
+  display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.08);
+  border-radius: 30px; padding: 4px 12px 4px 4px; cursor: pointer;
+  transition: background 0.2s; text-decoration: none;
+}
+.profile-chip:hover { background: rgba(255,255,255,0.15); text-decoration: none; }
+.profile-chip img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); }
+.profile-chip .chip-info { line-height: 1.2; }
+.profile-chip .chip-name { color: #fff; font-size: 0.82rem; font-weight: 600; }
+.profile-chip .chip-id { color: #94a3b8; font-size: 0.73rem; }
+.btn-back-dash {
+  background: rgba(14,165,233,0.15); border: 1px solid rgba(14,165,233,0.35);
+  color: var(--primary); border-radius: 20px; padding: 5px 14px; font-size: 0.82rem;
+  font-weight: 500; display: flex; align-items: center; gap: 6px;
+  text-decoration: none; transition: all 0.2s;
+}
+.btn-back-dash:hover { background: var(--primary); color: #fff; text-decoration: none; }
+
+/* ── ROLE BADGE ── */
+.role-badge-dept-hod {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(139,92,246,0.2); border: 1px solid rgba(139,92,246,0.4);
+  color: #c4b5fd; border-radius: 12px; padding: 2px 10px;
+  font-size: 0.72rem; font-weight: 700;
+}
+
+/* ── MAIN CONTENT ── */
+.main-content { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.page-title { font-size: 1.4rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px; }
+.page-title i { color: var(--primary); }
+
+/* ── CARD ── */
+.card { border: none; border-radius: 12px; box-shadow: var(--card-shadow); margin-bottom: 22px; }
+.card-header { border-radius: 12px 12px 0 0 !important; font-weight: 600; font-size: 0.95rem; letter-spacing: 0.3px; }
+
+/* ── STAGE BADGE ── */
+.stage-badge {
+  display: inline-block; border-radius: 6px; padding: 2px 8px;
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.5px;
+}
+.sb-blue   { background: #e0f2fe; color: #0369a1; }
+.sb-yellow { background: #fef9c3; color: #854d0e; }
+.sb-green  { background: #dcfce7; color: #166534; }
+.sb-red    { background: #fee2e2; color: #991b1b; }
+.sb-purple { background: #f3e8ff; color: #6b21a8; }
+.sb-orange { background: #fff7ed; color: #9a3412; }
+.sb-violet { background: #ede9fe; color: #4c1d95; }
+
+/* ── PARALLEL ROW STYLING ── */
+.parallel-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: #fef3c7; color: #92400e; border: 1px solid #fde68a;
+  border-radius: 20px; padding: 1px 7px; font-size: 0.71rem; font-weight: 700;
+  margin-left: 3px;
+}
+/* P4 row = light blue tint; P9 row = light violet tint */
+tr.row-p4-parallel { background: #f0f9ff !important; }
+tr.row-p9-parallel { background: #f5f3ff !important; }
+tr.row-p8-rejected { background: #fff1f2 !important; }
+tr.row-p4-parallel td:first-child { border-left: 3px solid #0ea5e9; }
+tr.row-p9-parallel td:first-child { border-left: 3px solid #7c3aed; }
+tr.row-p8-rejected td:first-child { border-left: 3px solid #dc2626; }
+/* Same-ID label */
+.parallel-id-badge {
+  display: inline-block; font-size: 0.65rem; background: #f1f5f9;
+  color: #64748b; border-radius: 4px; padding: 1px 5px; margin-top: 2px;
+}
+
+/* ── NEXT STEP LABEL ── */
+.next-step-label { font-size: 0.82rem; color: #475569; line-height: 1.4; }
+.next-step-label strong { color: #0f172a; font-size: 0.83rem; }
+
+/* ── DEADLINE / STATUS BADGES ── */
+.badge-ok   { background: #d1fae5; color: #065f46; padding: 4px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.badge-miss { background: #fee2e2; color: #991b1b; padding: 4px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.badge-warn { background: #fef9c3; color: #854d0e; padding: 4px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.badge-info-pill { background: #e0f2fe; color: #0369a1; padding: 4px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.badge-violet-pill { background: #ede9fe; color: #5b21b6; padding: 4px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+
+/* ── FILTER BAR ── */
+.filter-label { display:block; font-size:0.72rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.4px; margin-bottom:3px; }
+
+/* ── METRIC CARDS ── */
+.metric-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
+@media(max-width:992px){ .metric-cards{ grid-template-columns:repeat(2,1fr); } }
+@media(max-width:576px){ .metric-cards{ grid-template-columns:repeat(2,1fr); } }
+.metric-card {
+  border-radius:12px; padding:16px 18px; display:flex; align-items:center; gap:14px;
+  box-shadow:0 2px 10px rgba(0,0,0,0.07); position:relative; overflow:hidden;
+  transition:transform .15s, box-shadow .15s;
+}
+.metric-card:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,0.12); }
+.metric-card .mc-icon { width:46px; height:46px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+.metric-card .mc-body { flex:1; min-width:0; }
+.metric-card .mc-value { font-size:1.75rem; font-weight:800; line-height:1; }
+.metric-card .mc-label { font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.5px; margin-top:3px; opacity:.75; }
+.metric-card .mc-bg { position:absolute; right:-10px; bottom:-10px; font-size:4.5rem; opacity:.07; pointer-events:none; }
+.mc-pending   { background:#eff6ff; color:#1e40af; } .mc-pending   .mc-icon { background:#dbeafe; color:#2563eb; }
+.mc-completed { background:#f0fdf4; color:#14532d; } .mc-completed .mc-icon { background:#dcfce7; color:#16a34a; }
+.mc-rejected  { background:#fff7ed; color:#9a3412; } .mc-rejected  .mc-icon { background:#ffedd5; color:#ea580c; }
+.mc-parallel  { background:#fefce8; color:#713f12; } .mc-parallel  .mc-icon { background:#fef9c3; color:#ca8a04; }
+
+/* ── TABLE ── */
+.table th { background:#f1f5f9; font-size:0.82rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; border-bottom:2px solid #e2e8f0; vertical-align:middle; }
+.table td { vertical-align:middle; font-size:0.88rem; color:#1e293b; }
+.table-hover tbody tr:hover { background:#f0f9ff; }
+tr.row-p9-parallel:hover { background:#f0ebff !important; }
+tr.row-p8-rejected:hover  { background:#ffe4e6 !important; }
+.action-group { display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
+
+/* ── FORM ── */
+label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
+.form-control { border-radius:7px; border:1px solid #d1d5db; font-size:0.87rem; }
+.form-control:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(14,165,233,0.15); }
+
+/* ── MODAL ── */
+.modal-header { background:#0f172a; color:#fff; border-radius:8px 8px 0 0; }
+.modal-header .close { color:#fff; opacity:0.8; }
+.modal-title { font-size:1rem; font-weight:700; }
+.modal-body label { font-size:0.84rem; font-weight:600; }
+
+/* ── PREV STEP PANEL ── */
+.prev-step-panel { background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:0.83rem; }
+.prev-step-panel .psp-label { font-weight:700; color:#0369a1; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+.prev-step-panel .psp-remarks { color:#1e293b; margin-bottom:6px; white-space:pre-wrap; }
+.prev-step-panel .psp-attachment a { color:#0284c7; font-weight:600; font-size:0.82rem; }
+
+/* ── EMPLOYEE FETCH BOX ── */
+.emp-fetch-box { background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px 14px; margin-bottom:14px; display:none; }
+.emp-fetch-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 20px; font-size:0.83rem; }
+.emp-fetch-grid .ef-label { font-weight:700; color:#166534; font-size:0.77rem; text-transform:uppercase; }
+.emp-fetch-grid .ef-val { color:#1e293b; }
+
+/* ── CHECKLIST BOX ── */
+.checklist-box { background:#fef9c3; border:1px solid #fde68a; border-radius:8px; padding:10px 14px; margin-bottom:12px; font-size:0.82rem; color:#78350f; }
+.checklist-box strong { color:#92400e; display:block; margin-bottom:6px; }
+.checklist-box label { font-weight:normal; color:#78350f; margin:0; font-size:0.82rem; line-height:2; cursor:pointer; }
+
+/* ── INFO STRIP ── */
+.info-strip { background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:0.81rem; color:#0369a1; }
+.info-strip-purple { background:#f3e8ff; border:1px solid #d8b4fe; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:0.82rem; color:#6b21a8; }
+.info-strip-amber { background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:0.82rem; color:#92400e; }
+
+/* ── EMPTY STATE ── */
+.empty-state { text-align:center; padding:40px 20px; color:#94a3b8; }
+.empty-state i { font-size:2.5rem; margin-bottom:10px; display:block; }
+
+/* ── EMPLOYEE DROPDOWN ── */
+.emp-search-wrap { position: relative; }
+.emp-search-input {
+  width: 100%; padding: 9px 72px 9px 38px;
+  border: 1.5px solid #d1d5db; border-radius: 8px;
+  font-size: 0.875rem; outline: none; background: #fff;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  box-sizing: border-box;
+}
+.emp-search-input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,0.15); }
+.emp-search-icon {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  color: #94a3b8; font-size: 0.85rem; pointer-events: none;
+}
+.emp-clear-btn {
+  position: absolute; right: 34px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: #94a3b8; cursor: pointer;
+  font-size: 0.8rem; padding: 0; display: none; line-height: 1;
+}
+.emp-clear-btn:hover { color: #ef4444; }
+.emp-chevron-btn {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: #64748b; cursor: pointer;
+  font-size: 0.78rem; padding: 2px 4px; line-height: 1;
+  transition: color 0.15s, transform 0.2s;
+}
+.emp-chevron-btn:hover { color: #0ea5e9; }
+#empChevronIcon { display: inline-block; transition: transform 0.2s; }
+#empDropdownPortal {
+  position: fixed;
+  z-index: 99999;
+  background: #fff;
+  border: 1.5px solid #bae6fd;
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08);
+  overflow: hidden;
+  display: none;
+  min-width: 320px;
+}
+#empDropdownPortal .dd-header {
+  padding: 7px 12px 6px;
+  background: #f0f9ff;
+  border-bottom: 1px solid #e0f2fe;
+  font-size: 0.72rem; color: #0369a1; font-weight: 700;
+  display: flex; align-items: center; justify-content: space-between;
+}
+#empDropdownPortal .dd-list {
+  max-height: 230px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: #bae6fd #f0f9ff;
+}
+#empDropdownPortal .dd-list::-webkit-scrollbar { width: 5px; }
+#empDropdownPortal .dd-list::-webkit-scrollbar-track { background: #f0f9ff; }
+#empDropdownPortal .dd-list::-webkit-scrollbar-thumb { background: #7dd3fc; border-radius: 4px; }
+.emp-opt {
+  padding: 9px 13px; cursor: pointer;
+  display: flex; align-items: center; gap: 9px;
+  font-size: 0.845rem; border-bottom: 1px solid #f1f5f9;
+  transition: background 0.1s;
+  user-select: none;
+}
+.emp-opt:last-child { border-bottom: none; }
+.emp-opt:hover, .emp-opt.focused { background: #e0f2fe; }
+.emp-opt .emp-dot {
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
+}
+.emp-opt .emp-dot.active   { background: #16a34a; box-shadow: 0 0 0 2px #bbf7d0; }
+.emp-opt .emp-dot.inactive { background: #dc2626; box-shadow: 0 0 0 2px #fecaca; }
+.emp-opt .emp-code  { font-weight: 700; color: #0f172a; font-size: 0.83rem; }
+.emp-opt .emp-name  { color: #475569; }
+.emp-opt .emp-tag   {
+  margin-left: auto; font-size: 0.68rem; font-weight: 700; flex-shrink: 0;
+  padding: 1px 6px; border-radius: 10px;
+}
+.emp-opt .emp-tag.tag-inactive { background: #fee2e2; color: #991b1b; }
+.emp-opt .emp-tag.tag-active   { background: #dcfce7; color: #166534; }
+#empDropdownPortal .dd-empty {
+  padding: 18px; text-align: center; color: #94a3b8; font-size: 0.82rem;
+}
+.emp-search-input.selected { border-color: #16a34a; background: #f0fdf4; }
+.emp-search-input.selected-inactive { border-color: #f59e0b; background: #fffbeb; }
+.emp-inactive-strip {
+  display: none; margin-top: 6px;
+  background: #fef3c7; border: 1px solid #fde68a;
+  border-radius: 7px; padding: 7px 12px;
+  font-size: 0.8rem; color: #92400e; font-weight: 600;
+  align-items: center; gap: 8px;
+}
+.modal-body { overflow: visible !important; }
+.modal-content { overflow: visible !important; }
+
+/* ── HOLIDAY BADGE ── */
+.holiday-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #fef2f2; border: 1px solid #fecaca;
+  color: #b91c1c; border-radius: 8px; padding: 2px 8px;
+  font-size: 0.72rem; font-weight: 600;
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px) { .top-navbar .nav-center { display:none; } .main-content { padding:16px; } .brand-text { display:none; } }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════
+     TOP NAVBAR
+══════════════════════════════════ -->
+<nav class="top-navbar">
+  <div class="brand">
+    <img src="{{ url_for('static', filename='images/Logo.png') }}" alt="FMS Logo" onerror="this.style.display='none'">
+    <span class="brand-text">FMS <span>HR</span></span>
+  </div>
+
+  <div class="nav-center">
+    <a href="{{ url_for('dashboard') }}" class="nav-pill">
+      <i class="fas fa-th-large"></i> Dashboard
+    </a>
+    <a href="{{ url_for('exit_panel') }}" class="nav-pill active">
+      <i class="fas fa-door-open"></i> HR Exit Process
+    </a>
+    {% if is_admin_user %}
+    <a href="{{ url_for('fms_hr_exit_exit_admin_dashboard') }}" class="nav-pill"
+       style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)">
+      <i class="fas fa-layer-group"></i> Admin Dashboard
+    </a>
+    {% endif %}
+  </div>
+
+  <div class="nav-right">
+    <a href="{{ url_for('dashboard') }}" class="btn-back-dash">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+    <div class="profile-chip" title="{{ person_Accountable }}">
+      <img src="{{ url_for('static', filename=photo) if photo else '' }}" alt="Profile"
+           onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2216%22 fill=%22%23334155%22/%3E%3Ccircle cx=%2216%22 cy=%2213%22 r=%225%22 fill=%22%2394a3b8%22/%3E%3Cellipse cx=%2216%22 cy=%2226%22 rx=%228%22 ry=%225%22 fill=%22%2394a3b8%22/%3E%3C/svg%3E'">
+      <div class="chip-info">
+        <div class="chip-name">{{ person_Accountable }}</div>
+        <div class="chip-id">
+          {{ emp_code }} &nbsp;|&nbsp;
+          {% if role == 'admin' %}<span style="color:#f59e0b">Admin</span>
+          {% elif role == 'primary' %}<span style="color:#38bdf8">HR Executive</span>
+          {% elif role == 'secondary' %}<span style="color:#a78bfa">HR HOD</span>
+          {% elif role == 'dept_hod' %}<span style="color:#c4b5fd">Dept HOD</span>
+          {% else %}<span style="color:#94a3b8">{{ role }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    <a href="{{ url_for('logout') }}" class="nav-pill" title="Logout"
+       style="padding:6px 10px;" onclick="return confirm('Logout?')">
+      <i class="fas fa-sign-out-alt"></i>
+    </a>
+  </div>
+</nav>
+
+
+<!-- ══════════════════════════════════
+     MAIN CONTENT
+══════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="page-title">
+      <i class="fas fa-door-open"></i>
+      HR Exit Process Workflow
+      {% if is_dept_hod_user %}
+      <span class="role-badge-dept-hod"><i class="fas fa-user-tie mr-1"></i>Dept HOD View — P4 Tasks Only</span>
+      {% endif %}
+    </div>
+    <div class="d-flex" style="gap:8px;flex-wrap:wrap;align-items:center">
+      {% if not show_archived %}
+      <a href="{{ url_for('exit_panel', show_archived=1) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-archive mr-1"></i>View Archive
+      </a>
+      {% else %}
+      <a href="{{ url_for('exit_panel') }}" class="btn btn-sm btn-outline-primary">
+        <i class="fas fa-list mr-1"></i>Active Tasks
+      </a>
+      {% endif %}
+      <a href="https://docs.google.com/drawings/d/1zyw-JyU6eeJ8E0JOGNZiEgd2FtT4Rn-sLbO9Kp1UgGQ/edit" download class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-project-diagram mr-1"></i>Flowchart
+      </a>
+      <button class="btn btn-sm btn-outline-info" onclick="exportTablePDF()">
+        <i class="fas fa-file-pdf mr-1"></i>Export PDF
+      </button>
+      {% if is_hr_staff_user %}
+      <button class="btn btn-sm btn-primary" onclick="$('#exitFormModal').modal('show')">
+        <i class="fas fa-plus mr-1"></i>New Exit Request
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Dept HOD info strip ── -->
+  {% if is_dept_hod_user %}
+  <div class="info-strip-purple mb-3">
+    <i class="fas fa-info-circle mr-1"></i>
+    <strong>Dept HOD Portal:</strong> You can see and action <strong>P4 — System Team Mail</strong> tasks assigned to your department.
+    P4 must be completed <strong>7 days before the employee's Exit Date</strong>. Include the new assigned person's name in your mail to the System Team.
+  </div>
+  {% endif %}
+
+  <!-- ── Upcoming holiday notice ── -->
+  <div id="holidayNoticeBar" style="display:none" class="info-strip-amber mb-3">
+    <i class="fas fa-calendar-times mr-1"></i>
+    <strong>Upcoming Holidays:</strong> <span id="holidayNoticeText"></span>
+  </div>
+
+  <!-- ── METRIC CARDS (hidden for Dept HOD) ── -->
+  {% if not is_dept_hod_user %}
+  <div class="metric-cards">
+    <div class="metric-card mc-pending">
+      <div class="mc-icon"><i class="fas fa-hourglass-half"></i></div>
+      <div class="mc-body">
+        <div class="mc-value">{{ metrics.pending }}</div>
+        <div class="mc-label">In Progress</div>
+      </div>
+      <i class="fas fa-hourglass-half mc-bg"></i>
+    </div>
+    <div class="metric-card mc-completed">
+      <div class="mc-icon"><i class="fas fa-check-circle"></i></div>
+      <div class="mc-body">
+        <div class="mc-value">{{ metrics.completed }}</div>
+        <div class="mc-label">Completed Exits</div>
+      </div>
+      <i class="fas fa-check-circle mc-bg"></i>
+    </div>
+    <div class="metric-card mc-rejected">
+      <div class="mc-icon"><i class="fas fa-ban"></i></div>
+      <div class="mc-body">
+        <div class="mc-value">{{ metrics.rejected }}</div>
+        <div class="mc-label">Rejected / Cancelled</div>
+      </div>
+      <i class="fas fa-ban mc-bg"></i>
+    </div>
+
+  </div>
+  {% endif %}
+
+  <!-- ── FILTER BAR ── -->
+  <div class="card mb-3" style="border:1px solid #e2e8f0">
+    <div class="card-body py-2 px-3">
+      <div class="form-row align-items-end">
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Request ID</label>
+          <input type="text" id="filterTaskId" class="form-control form-control-sm" placeholder="e.g. 5" oninput="applyFilters()">
+        </div>
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Employee</label>
+          <input type="text" id="filterEmp" class="form-control form-control-sm" placeholder="Name or Code" oninput="applyFilters()">
+        </div>
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Department</label>
+          <input type="text" id="filterDept" class="form-control form-control-sm" placeholder="Department" oninput="applyFilters()">
+        </div>
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Process Step</label>
+          <select id="filterStep" class="form-control form-control-sm" onchange="applyFilters()">
+            <option value="">All Steps</option>
+            {% if not is_dept_hod_user %}
+            <option value="P1">P1 — Resignation Received</option>
+            <option value="P2">P2 — HOD Confirmation</option>
+            <option value="P3">P3 — Update Details</option>
+            {% endif %}
+            <option value="P4">P4 — System Team Mail (HOD)</option>
+            {% if not is_dept_hod_user %}
+            <option value="P5">P5 — Exit Interview Link</option>
+            <option value="P6">P6 — Handover</option>
+            <option value="P7">P7 — Letters</option>
+            <option value="P8">P8 — Complete Exit</option>
+            <option value="P9">P9 — Rejected</option>
+            {% endif %}
+          </select>
+        </div>
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Exit Date</label>
+          <input type="date" id="filterExitDate" class="form-control form-control-sm" onchange="applyFilters()">
+        </div>
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">&nbsp;</label>
+          <button class="btn btn-outline-secondary btn-sm btn-block" onclick="clearFilters()">
+            <i class="fas fa-times mr-1"></i>Clear Filters
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FLASH MESSAGES ── -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+      </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- ── WORKFLOW TABLE ── -->
+  <div class="card">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+      <span><i class="fas fa-tasks mr-2"></i>Exit Process Tasks
+        {% if is_dept_hod_user %}<span class="ml-2" style="font-size:0.78rem;opacity:0.7">(P4 tasks for your dept)</span>{% endif %}
+      </span>
+      <small class="text-secondary" id="taskCount"></small>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover mb-0" id="exitTable">
+          <thead>
+            <tr>
+              <th style="width:70px">#ID</th>
+              <th style="min-width:160px">Employee</th>
+              <th>Department</th>
+              <th style="width:95px;text-align:center">Exit Date</th>
+              <th style="width:130px;text-align:center">Plan End Time</th>
+              <th style="width:110px;text-align:center">Step</th>
+              <th style="min-width:180px">Who / What / When</th>
+              <th style="width:80px;text-align:center">Attachment</th>
+              <th style="min-width:140px">Prev Step Remarks</th>
+              <th style="width:90px;text-align:center">Status</th>
+              <th style="min-width:200px">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% if tasks %}
+            {# ── Active tasks first, then P8/REJECTED (awaiting acknowledgement) last ── #}
+            {% set active_tasks   = tasks | rejectattr('status', 'in', ['REJECTED','CANCELLED']) | list %}
+            {% set rejected_tasks = tasks | selectattr('status', 'equalto', 'REJECTED') | list %}
+            {% set all_ordered    = active_tasks + rejected_tasks %}
+
+            {% for t in all_ordered %}
+            {# ── Role-based visibility ── #}
+            {# Dept HOD only sees P9 rows; HR staff see P4 rows and all others #}
+            {% set row_type = t._row_type %}
+            {# ── Role-based row visibility ──
+               HR staff (incl. admin) see all rows.
+               Pure Dept HOD (not HR staff, not admin) sees ONLY P4 rows. #}
+            {% set pure_dept_hod = is_dept_hod_user and not is_hr_staff_user and not is_admin_user %}
+            {% if pure_dept_hod and t.workflow_stage != 'P4' %}
+              {# Dept HOD: skip all rows not at P4 stage #}
+            {% else %}
+
+            {% set stage = t.workflow_stage %}
+            {% set display_stage = stage %}
+
+            <tr
+              class="{% if t.workflow_stage == 'P9' and t.status == 'REJECTED' %}row-p8-rejected{% endif %}"
+              data-id="{{ t.id }}"
+              data-emp="{{ ((t.employee_name or '') ~ ' ' ~ (t.employee_code or ''))|lower|e }}"
+              data-dept="{{ (t.department or '')|lower|e }}"
+              data-stage="{{ display_stage }}"
+              data-exitdate="{{ t.date_of_exit.strftime('%Y-%m-%d') if t.date_of_exit else '' }}"
+              data-rejected="{{ '1' if t.status in ['REJECTED','CANCELLED'] else '0' }}">
+
+              <!-- ID -->
+              <td>
+                <strong>#{{ t.id }}</strong>
+              </td>
+
+              <!-- Employee -->
+              <td>
+                <div style="font-weight:600;font-size:0.88rem">{{ t.employee_name }}</div>
+                <div style="font-size:0.74rem;color:#64748b">{{ t.employee_code }}</div>
+                {% if t.hod %}<div style="font-size:0.74rem;color:#94a3b8"><i class="fas fa-user-tie mr-1"></i>HOD: {{ t.hod }}</div>{% endif %}
+              </td>
+
+              <!-- Department -->
+              <td style="font-size:0.85rem">{{ t.department or '—' }}</td>
+
+              <!-- Exit Date -->
+              <td class="text-center" style="white-space:nowrap">
+                {% if t.date_of_exit %}
+                <span style="font-weight:700;color:#dc2626;font-size:0.84rem">
+                  {{ t.date_of_exit.strftime('%d/%m/%Y') if t.date_of_exit is not string else t.date_of_exit }}
+                </span>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+
+              <!-- Deadline / Plan End Time -->
+              <td class="text-center" style="white-space:nowrap;font-size:0.78rem">
+                {% if t.deadline_at %}
+                  {# All other stages #}
+                  {% if t.deadline_at < now and t.status == 'OPEN' %}
+                    <span class="badge-miss" style="display:inline-block">
+                      <i class="fas fa-exclamation-circle mr-1"></i>
+                      {{ t.deadline_at.strftime('%d-%m-%Y %H:%M') if t.deadline_at is not string else t.deadline_at[:16] }}
+                    </span>
+                    <div style="font-size:0.68rem;color:#991b1b;margin-top:2px">OVERDUE</div>
+                  {% else %}
+                    <span class="badge-ok" style="display:inline-block">
+                      <i class="fas fa-clock mr-1"></i>
+                      {{ t.deadline_at.strftime('%d-%m-%Y %H:%M') if t.deadline_at is not string else t.deadline_at[:16] }}
+                    </span>
+                    {% if display_stage == 'P2' %}
+                      <div style="font-size:0.68rem;color:#64748b;margin-top:2px">2 working days</div>
+                    {% elif display_stage == 'P3' %}
+                      <div style="font-size:0.68rem;color:#64748b;margin-top:2px">2 working hours</div>
+                    {% elif display_stage == 'P4' %}
+                      <div style="font-size:0.68rem;color:#6b21a8;margin-top:2px">7 days before exit</div>
+                    {% elif display_stage == 'P5' %}
+                      <div style="font-size:0.68rem;color:#64748b;margin-top:2px">Exit date 11 AM</div>
+                    {% elif display_stage == 'P6' %}
+                      <div style="font-size:0.68rem;color:#64748b;margin-top:2px">Exit date 2 PM</div>
+                    {% elif display_stage == 'P7' %}
+                      <div style="font-size:0.68rem;color:#64748b;margin-top:2px">Exit date 4 PM</div>
+                    {% elif display_stage == 'P8' %}
+                      <div style="font-size:0.68rem;color:#64748b;margin-top:2px">Exit date 5 PM</div>
+                    {% elif display_stage == 'P9' %}
+                      <div style="font-size:0.68rem;color:#991b1b;margin-top:2px">2 working hours</div>
+                    {% endif %}
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted" style="font-size:0.75rem">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Step Badge -->
+              <td class="text-center">
+                {% if display_stage == 'P1' %}
+                  <span class="stage-badge sb-blue">P1</span>
+                {% elif display_stage == 'P2' %}
+                  <span class="stage-badge sb-yellow">P2</span>
+                {% elif display_stage == 'P3' %}
+                  <span class="stage-badge sb-blue">P3</span>
+                {% elif display_stage == 'P4' %}
+                  <span class="stage-badge sb-purple">P4</span>
+                  <div style="margin-top:3px;font-size:0.7rem;color:#6b21a8">Dept HOD</div>
+                {% elif display_stage == 'P5' %}
+                  <span class="stage-badge sb-blue">P5</span>
+                {% elif display_stage == 'P6' %}
+                  <span class="stage-badge sb-blue">P6</span>
+                {% elif display_stage == 'P7' %}
+                  <span class="stage-badge sb-blue">P7</span>
+                {% elif display_stage == 'P8' %}
+                  <span class="stage-badge sb-green">P8</span>
+                {% elif display_stage == 'P9' %}
+                  <span class="stage-badge sb-red">P9</span>
+                  <div style="margin-top:3px;font-size:0.7rem;color:#991b1b">Rejected</div>
+                {% else %}
+                  <span class="stage-badge sb-orange">{{ display_stage }}</span>
+                {% endif %}
+              </td>
+
+              <!-- Who / What / When -->
+              <td>
+                {% set h = help_data.get(display_stage) or help_data.get(stage) %}
+                {% if h %}
+                <div class="next-step-label">
+                  <strong>{{ h.who }}</strong><br>
+                  <span style="font-size:0.78rem;color:#475569">{{ h.what }}</span><br>
+                  <span style="font-size:0.73rem;color:#94a3b8"><i class="fas fa-clock mr-1"></i>{{ h.when }}</span>
+                </div>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Attachment (n-1 step only — no cascade fallback) -->
+              <td class="text-center" style="font-size:0.82rem">
+                {% if display_stage == 'P2' %}{% set att = t.p1_attachment or '' %}
+                {% elif display_stage == 'P3' %}{% set att = t.p2_attachment or '' %}
+                {% elif display_stage == 'P4' %}{% set att = t.p3_attachment or '' %}
+                {% elif display_stage == 'P5' %}{% set att = t.p4_attachment or '' %}
+                {% elif display_stage == 'P6' %}{% set att = t.p5_attachment or '' %}
+                {% elif display_stage == 'P7' %}{% set att = t.p6_attachment or '' %}
+                {% elif display_stage == 'P8' %}{% set att = t.p7_attachment or '' %}
+                {% elif display_stage == 'P9' %}{% set att = t.p2_attachment or '' %}
+                {% else %}{% set att = '' %}{% endif %}
+                {% if att %}
+                  {% set ext = att.rsplit('.', 1)[-1].lower() %}
+                  {% if ext == 'pdf' %}
+                    <a href="/static/{{ att }}" target="_blank" style="color:#dc2626;font-weight:600">
+                      <i class="fas fa-file-pdf mr-1"></i>View
+                    </a>
+                  {% else %}
+                    <a href="/static/{{ att }}" download style="color:#0284c7;font-weight:600">
+                      <i class="fas fa-paperclip mr-1"></i>File
+                    </a>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Previous Step Remarks -->
+              <td style="font-size:0.78rem;max-width:160px">
+                {% if display_stage == 'P2' %}
+                  {% if t.p1_remarks %}<div style="font-weight:600;color:#0369a1;font-size:0.72rem">P1 Remarks:</div><div style="color:#1e293b;white-space:pre-wrap">{{ t.p1_remarks[:120] }}{% if t.p1_remarks|length > 120 %}…{% endif %}</div>{% else %}<span class="text-muted">—</span>{% endif %}
+                {% elif display_stage == 'P3' %}
+                  {% if t.p2_remarks %}<div style="font-weight:600;color:#0369a1;font-size:0.72rem">P2 Remarks:</div><div style="color:#1e293b;white-space:pre-wrap">{{ t.p2_remarks[:120] }}{% if t.p2_remarks|length > 120 %}…{% endif %}</div>{% else %}<span class="text-muted">—</span>{% endif %}
+                {% elif display_stage == 'P4' %}
+                  {% if t.p3_remarks %}<div style="font-weight:600;color:#0369a1;font-size:0.72rem">P3 Remarks:</div><div style="color:#1e293b;white-space:pre-wrap">{{ t.p3_remarks[:120] }}{% if t.p3_remarks|length > 120 %}…{% endif %}</div>{% else %}<span class="text-muted">—</span>{% endif %}
+                {% elif display_stage == 'P5' %}
+                  {% if t.p4_remarks %}<div style="font-weight:600;color:#0369a1;font-size:0.72rem">P4 Remarks:</div><div style="color:#1e293b;white-space:pre-wrap">{{ t.p4_remarks[:120] }}{% if t.p4_remarks|length > 120 %}…{% endif %}</div>{% else %}<span class="text-muted">—</span>{% endif %}
+                {% elif display_stage == 'P6' %}
+                  {% if t.p5_remarks %}<div style="font-weight:600;color:#0369a1;font-size:0.72rem">P5 Remarks:</div><div style="color:#1e293b;white-space:pre-wrap">{{ t.p5_remarks[:120] }}{% if t.p5_remarks|length > 120 %}…{% endif %}</div>{% else %}<span class="text-muted">—</span>{% endif %}
+                {% elif display_stage == 'P7' %}
+                  {% if t.p6_remarks %}<div style="font-weight:600;color:#0369a1;font-size:0.72rem">P6 Remarks:</div><div style="color:#1e293b;white-space:pre-wrap">{{ t.p6_remarks[:120] }}{% if t.p6_remarks|length > 120 %}…{% endif %}</div>{% else %}<span class="text-muted">—</span>{% endif %}
+                {% elif display_stage == 'P8' %}
+                  {% if t.p7_remarks %}<div style="font-weight:600;color:#0369a1;font-size:0.72rem">P7 Remarks:</div><div style="color:#1e293b;white-space:pre-wrap">{{ t.p7_remarks[:120] }}{% if t.p7_remarks|length > 120 %}…{% endif %}</div>{% else %}<span class="text-muted">—</span>{% endif %}
+                {% elif display_stage == 'P9' %}
+                  {% if t.p2_remarks %}<div style="font-weight:600;color:#991b1b;font-size:0.72rem">Rejection Remarks:</div><div style="color:#1e293b;white-space:pre-wrap">{{ t.p2_remarks[:120] }}{% if t.p2_remarks|length > 120 %}…{% endif %}</div>{% else %}<span class="text-muted">—</span>{% endif %}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Status -->
+              <td class="text-center">
+                {% if t.status == 'CLOSED' %}
+                  <span class="badge-ok"><i class="fas fa-check-circle mr-1"></i>Complete</span>
+                {% elif t.status == 'REJECTED' %}
+                  <span class="badge-miss" style="display:inline-block;line-height:1.4">
+                    <i class="fas fa-ban mr-1"></i>P9<br>
+                    <span style="font-size:0.68rem;font-weight:600">Pending Close</span>
+                  </span>
+                {% elif t.status == 'CANCELLED' %}
+                  <span class="badge-miss"><i class="fas fa-times-circle mr-1"></i>Closed</span>
+                {% else %}
+                  <span class="badge-warn"><i class="fas fa-spinner mr-1"></i>In Progress</span>
+                {% endif %}
+              </td>
+
+              <!-- ACTION BUTTONS — role gated -->
+              <td>
+                <div class="action-group">
+
+                  {# ── View Detail — all roles ── #}
+                  <a href="{{ url_for('fms_hr_exit_exit_detail', req_id=t.id) }}"
+                     class="btn btn-outline-secondary btn-sm" title="View Full Timeline">
+                    <i class="fas fa-eye"></i>
+                  </a>
+
+                  {# ════════ P2: HOD Confirmation Decision ════════ #}
+                  {% if display_stage == 'P2' and is_hr_staff_user %}
+                  <button class="btn btn-warning btn-sm text-dark act-decision-btn"
+                    data-url="/exit/{{ t.id }}/p2_decision"
+                    data-title="P2 — HOD Resignation Confirmation"
+                    data-prev-label="P1 — Initiation Remarks"
+                    data-prev-remarks="{{ t.p1_remarks|e if t.p1_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' ~ t.p1_attachment)|e if t.p1_attachment else '' }}"
+                    data-emp-code="{{ t.employee_code }}">
+                    <i class="fas fa-gavel mr-1"></i>HOD Decision
+                  </button>
+                  {% endif %}
+
+                  {# ════════ P3: Update Exit Details → P4 ════════ #}
+                  {% if display_stage == 'P3' and is_hr_staff_user %}
+                  <button class="btn btn-primary btn-sm act-step-btn"
+                    data-url="/exit/{{ t.id }}/p3_update"
+                    data-title="P3 — Update Exit Details"
+                    data-icon="fas fa-edit"
+                    data-btn-class="btn-primary"
+                    data-btn-text="Update & Proceed to P4"
+                    data-prev-label="P2 — HOD Confirmation Remarks"
+                    data-prev-remarks="{{ t.p2_remarks|e if t.p2_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' ~ t.p2_attachment)|e if t.p2_attachment else '' }}"
+                    data-show-checklist="1"
+                    data-checklist-count="3"
+                    data-emp-code="{{ t.employee_code }}">
+                    <i class="fas fa-edit mr-1"></i>Update Details
+                  </button>
+                  {% endif %}
+
+                  {# ════════ P4: Dept HOD — Mail System Team → P5 ════════ #}
+                  {% if display_stage == 'P4' and (pure_dept_hod or is_admin_user) %}
+                  <button class="btn btn-sm text-white act-p4-btn"
+                    style="background:#7c3aed"
+                    data-url="/exit/{{ t.id }}/p4_done"
+                    data-prev-remarks="{{ t.p3_remarks|e if t.p3_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' ~ t.p3_attachment)|e if t.p3_attachment else '' }}"
+                    data-emp-code="{{ t.employee_code }}">
+                    <i class="fas fa-envelope mr-1"></i>Mail System Team
+                  </button>
+                  {% endif %}
+
+                  {# ════════ P5: HR — Share Exit Interview Link → P6 ════════ #}
+                  {% if display_stage == 'P5' and is_hr_staff_user %}
+                  <button class="btn btn-info btn-sm text-white act-step-btn"
+                    data-url="/exit/{{ t.id }}/p5_done"
+                    data-title="P5 — Share Exit Interview Link"
+                    data-icon="fas fa-link"
+                    data-btn-class="btn-info"
+                    data-btn-text="Confirm Interview Link Shared"
+                    data-prev-label="P4 — System Team Mail Remarks"
+                    data-prev-remarks="{{ t.p4_remarks|e if t.p4_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' ~ t.p4_attachment)|e if t.p4_attachment else '' }}"
+                    data-show-checklist="0"
+                    data-emp-code="{{ t.employee_code }}">
+                    <i class="fas fa-link mr-1"></i>Share Interview Link
+                  </button>
+                  {% endif %}
+
+                  {# ════════ P6: Handover + Clearance → P7 ════════ #}
+                  {% if display_stage == 'P6' and is_hr_staff_user %}
+                  <button class="btn btn-primary btn-sm act-step-btn"
+                    data-url="/exit/{{ t.id }}/p6_done"
+                    data-title="P6 — Handover Doc + Asset / Clearance"
+                    data-icon="fas fa-box-open"
+                    data-btn-class="btn-primary"
+                    data-btn-text="Submit & Move to P7"
+                    data-prev-label="P5 — Exit Interview Remarks"
+                    data-prev-remarks="{{ t.p5_remarks|e if t.p5_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' ~ t.p5_attachment)|e if t.p5_attachment else '' }}"
+                    data-show-checklist="0"
+                    data-emp-code="{{ t.employee_code }}">
+                    <i class="fas fa-box-open mr-1"></i>Handover &amp; Clearance
+                  </button>
+                  {% endif %}
+
+                  {# ════════ P7: Issue Letters → P8 ════════ #}
+                  {% if display_stage == 'P7' and is_hr_staff_user %}
+                  <button class="btn btn-success btn-sm act-step-btn"
+                    data-url="/exit/{{ t.id }}/p7_done"
+                    data-title="P7 — Issue Release + Experience Letter"
+                    data-icon="fas fa-file-alt"
+                    data-btn-class="btn-success"
+                    data-btn-text="Confirm Letters Issued → Move to P8"
+                    data-prev-label="P6 — Handover & Clearance Remarks"
+                    data-prev-remarks="{{ t.p6_remarks|e if t.p6_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' ~ t.p6_attachment)|e if t.p6_attachment else '' }}"
+                    data-show-checklist="1"
+                    data-checklist-count="3"
+                    data-emp-code="{{ t.employee_code }}">
+                    <i class="fas fa-file-alt mr-1"></i>Issue Letters
+                  </button>
+                  {% endif %}
+
+                  {# ════════ P8: Mark Inactive & Close (FINAL) — dedicated inactivity modal ════════ #}
+                  {% if display_stage == 'P8' and is_hr_staff_user %}
+                  <button class="btn btn-danger btn-sm act-p8-btn"
+                    data-url="/exit/{{ t.id }}/p8_done"
+                    data-emp-name="{{ t.employee_name|e }}"
+                    data-emp-code="{{ t.employee_code }}"
+                    data-prev-remarks="{{ t.p7_remarks|e if t.p7_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' ~ t.p7_attachment)|e if t.p7_attachment else '' }}">
+                    <i class="fas fa-user-slash mr-1"></i>Mark Inactive &amp; Close
+                  </button>
+                  {% endif %}
+
+                  {# ════════ P9 — REJECTED: show Acknowledge & Close button ════════ #}
+                  {% if t.workflow_stage == 'P9' and t.status == 'REJECTED' and is_hr_staff_user %}
+                  <form method="POST" action="/exit/{{ t.id }}/p9_close"
+                        onsubmit="return confirm('Acknowledge rejection and fully close this process for {{ t.employee_name|e }}?')"
+                        style="display:inline">
+                    <input type="hidden" name="remarks" value="">
+                    <button type="submit" class="btn btn-sm btn-danger">
+                      <i class="fas fa-check-circle mr-1"></i>Acknowledge &amp; Close
+                    </button>
+                  </form>
+                  {% endif %}
+
+                  {# ════════ CANCELLED / CLOSED — fully locked ════════ #}
+                  {% if t.status == 'CANCELLED' %}
+                  <span class="badge-miss" style="font-size:0.73rem"><i class="fas fa-ban mr-1"></i>P9 Closed</span>
+                  {% elif t.status == 'CLOSED' %}
+                  <span class="text-muted" style="font-size:0.78rem"><i class="fas fa-lock mr-1"></i>Closed</span>
+                  {% endif %}
+
+                </div>
+              </td>
+
+            </tr>
+            {% endif %}{# end role check #}
+            {% endfor %}
+
+          {% else %}
+          <tr>
+            <td colspan="11">
+              <div class="empty-state">
+                <i class="fas fa-door-open"></i>
+                {% if is_dept_hod_user %}
+                  No P9 tasks assigned to your department at this time.
+                {% else %}
+                  No active exit process tasks found.
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-content -->
+
+
+<!-- ══════════════════════════════════
+     MODALS
+══════════════════════════════════ -->
+
+<!-- ══ MODAL: New Exit Request (P1 Initiation) — HR Staff only ══ -->
+{% if is_hr_staff_user %}
+<div class="modal fade" id="exitFormModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#0ea5e9,#0284c7)">
+        <h5 class="modal-title text-white">
+          <i class="fas fa-door-open mr-2"></i>New Exit Request — P1 Initiation
+        </h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+
+        <div class="info-strip">
+          <i class="fas fa-info-circle mr-1"></i>
+          <strong>Annexure 1:</strong> Steps P1–P7 handled by
+          <strong>HR Executive (Primary Doer)</strong> &amp; <strong>HR HOD (Secondary Doer)</strong>.
+          P9 is handled exclusively by the <strong>Departmental HOD</strong>.
+          Department, HOD, DOJ and Reporting DOER are auto-fetched from HR Master.
+        </div>
+
+        <!-- Holiday Warning strip (updated by JS) -->
+        <div id="holidayWarningModal" class="info-strip-amber" style="display:none">
+          <i class="fas fa-calendar-times mr-1"></i>
+          <strong>Holiday Notice:</strong> <span id="holidayWarningText"></span>
+          Deadline will automatically skip to the next working day.
+        </div>
+
+        <form method="POST" action="{{ url_for('fms_hr_exit_exit_create') }}" enctype="multipart/form-data" id="exitCreateForm">
+
+          <!-- Employee Search + Dropdown -->
+          <div class="form-group mb-3">
+            <label for="empSearch">Select Employee <span class="text-danger">*</span></label>
+            <div class="emp-search-wrap" id="empSearchWrap">
+              <i class="fas fa-search emp-search-icon"></i>
+              <input
+                type="text"
+                class="emp-search-input"
+                id="empSearch"
+                placeholder="Type employee code or name to search…"
+                autocomplete="off"
+                spellcheck="false"
+              >
+              <button type="button" class="emp-clear-btn" id="empClearBtn" title="Clear selection">
+                <i class="fas fa-times"></i>
+              </button>
+              <button type="button" class="emp-chevron-btn" id="empChevronBtn" title="Show all employees">
+                <i class="fas fa-chevron-down" id="empChevronIcon"></i>
+              </button>
+            </div>
+            <input type="hidden" name="employee_code" id="empCodeInput" required>
+            <div class="emp-inactive-strip" id="empStatusWarn">
+              <i class="fas fa-exclamation-triangle" style="flex-shrink:0"></i>
+              <span>This employee is <strong>INACTIVE</strong> in HR Master. Exit request will still be created — please verify.</span>
+            </div>
+            <div style="margin-top:5px;font-size:0.74rem;color:#64748b">
+              <span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#16a34a"></span> Active
+              </span>
+              <span style="display:inline-flex;align-items:center;gap:4px">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#dc2626"></span> Inactive
+              </span>
+            </div>
+          </div>
+
+          <!-- Auto-fetched display box -->
+          <div class="emp-fetch-box" id="empFetchBox">
+            <div style="font-weight:700;color:#166534;font-size:0.82rem;margin-bottom:10px">
+              <i class="fas fa-check-circle mr-1"></i>Employee details fetched from HR Master
+            </div>
+            <div class="emp-fetch-grid">
+              <div><div class="ef-label">Name</div><div class="ef-val" id="ef_name">—</div></div>
+              <div><div class="ef-label">Designation</div><div class="ef-val" id="ef_desig">—</div></div>
+              <div><div class="ef-label">Department</div><div class="ef-val" id="ef_dept">—</div></div>
+              <div><div class="ef-label">HOD</div><div class="ef-val" id="ef_hod">—</div></div>
+              <div><div class="ef-label">Date of Joining</div><div class="ef-val" id="ef_doj">—</div></div>
+              <div><div class="ef-label">Reporting DOER</div><div class="ef-val" id="ef_doer">—</div></div>
+              <div><div class="ef-label">Location</div><div class="ef-val" id="ef_location">—</div></div>
+            </div>
+          </div>
+
+          <!-- Hidden auto-populated -->
+          <input type="hidden" name="employee_name"     id="hid_name">
+          <input type="hidden" name="department"        id="hid_dept">
+          <input type="hidden" name="hod"               id="hid_hod">
+          <input type="hidden" name="hod_id"            id="hid_hod_id">
+          <input type="hidden" name="doj"               id="hid_doj">
+          <input type="hidden" name="reporting_doer"    id="hid_doer">
+          <input type="hidden" name="reporting_doer_id" id="hid_doer_id">
+
+          <div class="row">
+            <div class="col-md-6 form-group">
+              <label>Date of Exit <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" name="date_of_exit" id="exitDateInput" required onchange="checkExitDateHoliday()">
+              <small class="text-muted">P9 deadline = 7 working days before this date &nbsp;·&nbsp; <strong>Minimum 7 days from today</strong></small>
+              <div id="exitDateMinWarn" style="display:none;margin-top:4px;font-size:0.78rem;color:#b91c1c;font-weight:600;background:#fff0f0;border:1px solid #fca5a5;border-radius:6px;padding:6px 10px;">
+                <i class="fas fa-ban mr-1"></i>Exit date must be <strong>at least 7 days from today</strong>. Please select a later date.
+              </div>
+              <div id="exitDateHolidayWarn" style="display:none;margin-top:4px;font-size:0.78rem;color:#b91c1c;font-weight:600">
+                <i class="fas fa-exclamation-triangle mr-1"></i><span id="exitDateHolidayText"></span>
+              </div>
+            </div>
+            <div class="col-md-6 form-group">
+              <label>Resignation / Mail Attachment</label>
+              <input type="file" class="form-control-file" name="attachment"
+                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+              <small class="text-muted">Resignation letter, email screenshot, etc.</small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Remarks</label>
+            <textarea class="form-control" name="remarks" rows="3"
+                      placeholder="Reason for exit, notice period, any special notes..."></textarea>
+          </div>
+
+          <div class="d-flex justify-content-end" style="gap:8px">
+            <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="exitSubmitBtn" disabled>
+              <i class="fas fa-paper-plane mr-1"></i>Initiate Exit Process
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+
+<!-- ══ MODAL: P2 — HOD Decision (YES / NO) ══ -->
+<div class="modal fade" id="decisionModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#0f172a">
+        <h5 class="modal-title text-white" id="decisionModalTitle">
+          <i class="fas fa-gavel mr-2 text-warning"></i>P2 — HOD Resignation Confirmation
+        </h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="decisionInactiveWarn" class="alert alert-warning py-2 mb-2" style="display:none;font-size:0.82rem">
+          <i class="fas fa-exclamation-triangle mr-1"></i>
+          <strong>Note:</strong> This employee is <strong>INACTIVE</strong> in HR Master.
+        </div>
+        <div id="decisionPrevPanel" class="prev-step-panel" style="display:none">
+          <div class="psp-label" id="decisionPrevLabel"><i class="fas fa-history mr-1"></i>P1 — Initiation Remarks</div>
+          <div class="psp-remarks" id="decisionPrevRemarks"></div>
+          <div class="psp-attachment" id="decisionPrevAttachment"></div>
+        </div>
+        <form id="decisionForm" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label>HOD Decision <span class="text-danger">*</span></label>
+            <select class="form-control" name="decision" id="decisionSelect" required>
+              <option value="">— Select Decision —</option>
+              <option value="YES">YES → Resignation Accepted → Proceed to P3</option>
+              <option value="NO">NO → Resignation Rejected → P9 (Process Ends)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Remarks <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="remarks" rows="3" required
+                      placeholder="HOD confirmation remarks..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Attachment <small class="text-muted">(optional)</small></label>
+            <input type="file" class="form-control-file" name="attachment"
+                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+          </div>
+          <button type="submit" class="btn btn-warning btn-block text-dark font-weight-bold" id="decisionSubmitBtn">
+            <i class="fas fa-paper-plane mr-1"></i>Submit Decision
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ MODAL: General Step (P3, P5, P6, P7) ══ -->
+<div class="modal fade" id="stepModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#0f172a">
+        <h5 class="modal-title text-white" id="stepModalTitle">
+          <i class="fas fa-forward mr-2 text-info"></i>Step Action
+        </h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="stepInactiveWarn" class="alert alert-warning py-2 mb-2" style="display:none;font-size:0.82rem">
+          <i class="fas fa-exclamation-triangle mr-1"></i>
+          <strong>Note:</strong> This employee is <strong>INACTIVE</strong> in HR Master.
+        </div>
+        <div id="stepPrevPanel" class="prev-step-panel" style="display:none">
+          <div class="psp-label" id="stepPrevLabel"><i class="fas fa-history mr-1"></i>Previous Step</div>
+          <div class="psp-remarks" id="stepPrevRemarks"></div>
+          <div class="psp-attachment" id="stepPrevAttachment"></div>
+        </div>
+
+        <!-- Checklist (P3 & P7) — ALL must be ticked in order -->
+        <div class="checklist-box" id="stepChecklist" style="display:none">
+          <strong><i class="fas fa-tasks mr-1"></i>Checklist — All items must be ticked before submitting:</strong>
+          <div id="chkList" style="margin-top:4px">
+            <label id="lbl1" style="display:flex;align-items:center;gap:8px;margin-bottom:4px;cursor:pointer">
+              <input type="checkbox" id="chk1" class="mr-1" onchange="handleChkChange(1)">
+              <span id="chkText1">1. Update Exit Details in Google Sheet</span>
+            </label>
+            <label id="lbl2" style="display:flex;align-items:center;gap:8px;margin-bottom:4px;cursor:pointer;opacity:0.4;pointer-events:none">
+              <input type="checkbox" id="chk2" class="mr-1" disabled onchange="handleChkChange(2)">
+              <span id="chkText2">2. Update Exit Details in ERP</span>
+            </label>
+            <label id="lbl3" style="display:flex;align-items:center;gap:8px;margin-bottom:4px;cursor:pointer;opacity:0.4;pointer-events:none">
+              <input type="checkbox" id="chk3" class="mr-1" disabled onchange="handleChkChange(3)">
+              <span id="chkText3">3. Update Exit Details in Intrasite V2 &amp; Org Chart</span>
+            </label>
+            <label id="lbl4" style="display:flex;align-items:center;gap:8px;cursor:pointer;opacity:0.4;pointer-events:none">
+              <input type="checkbox" id="chk4" class="mr-1" disabled onchange="handleChkChange(4)">
+              <span id="chkText4">4. Mark Employee as INACTIVE in HR Master Portal</span>
+            </label>
+          </div>
+          <div id="chkWarning" style="display:none;margin-top:8px;background:#fee2e2;color:#991b1b;border-radius:6px;padding:5px 10px;font-size:0.8rem;font-weight:600">
+            <i class="fas fa-lock mr-1"></i>Please tick all checklist items to proceed.
+          </div>
+        </div>
+
+        <form id="stepForm" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label>Remarks <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="remarks" rows="3" required
+                      placeholder="Remarks for this step..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Attachment <small class="text-muted">(optional)</small></label>
+            <input type="file" class="form-control-file" name="attachment"
+                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="stepSubmitBtn">
+            <i class="fas fa-arrow-right mr-1"></i>Submit &amp; Move Forward
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ MODAL: P9 — System Team Mail (Dept HOD only) ══ -->
+<div class="modal fade" id="p9Modal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#0f172a">
+        <h5 class="modal-title text-white">
+          <i class="fas fa-envelope mr-2" style="color:#a78bfa"></i>P4 — Mail System Team for Task Transfer
+        </h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="p9InactiveWarn" class="alert alert-warning py-2 mb-2" style="display:none;font-size:0.82rem">
+          <i class="fas fa-exclamation-triangle mr-1"></i>
+          <strong>Note:</strong> This employee is <strong>INACTIVE</strong> in HR Master.
+        </div>
+        <div class="info-strip-purple">
+          <i class="fas fa-info-circle mr-1"></i>
+          <strong>P4 — Dept HOD action.</strong> Runs <strong>after P3, before P5</strong>.
+          Mail the System Team with the new assigned person's name — must be done
+          <strong>7 working days before Exit Date</strong>.
+        </div>
+        <div id="p9PrevPanel" class="prev-step-panel" style="display:none">
+          <div class="psp-label"><i class="fas fa-history mr-1"></i>P3 — Exit Details Remarks</div>
+          <div class="psp-remarks" id="p9PrevRemarks"></div>
+          <div class="psp-attachment" id="p9PrevAttachment"></div>
+        </div>
+        <form id="p9Form" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label>New Assigned Person <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="new_assigned_person" required
+                   placeholder="Name of person tasks will be transferred to">
+            <small class="text-muted">This name will be communicated to System Team via email</small>
+          </div>
+          <div class="form-group">
+            <label>Remarks <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="remarks" rows="3" required
+                      placeholder="Details of tasks being transferred, systems involved..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Attachment <small class="text-muted">(Mail screenshot / task handover list)</small></label>
+            <input type="file" class="form-control-file" name="attachment"
+                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+          </div>
+          <button type="submit" class="btn btn-block font-weight-bold" style="background:#7c3aed;color:#fff">
+            <i class="fas fa-paper-plane mr-1"></i>Confirm Mail Sent to System Team
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     P8 — Mark Inactive & Close (Inactivity Confirmation Modal)
+══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="p8Modal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#7f1d1d">
+        <h5 class="modal-title text-white">
+          <i class="fas fa-user-slash mr-2" style="color:#fca5a5"></i>P8 — Mark Employee Inactive &amp; Close Exit
+        </h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Employee name banner -->
+        <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px;margin-bottom:14px">
+          <div style="font-size:0.78rem;color:#991b1b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">Employee</div>
+          <div id="p8EmpName" style="font-size:1.05rem;font-weight:700;color:#7f1d1d"></div>
+          <div id="p8EmpCode" style="font-size:0.78rem;color:#b91c1c;margin-top:1px"></div>
+        </div>
+
+        <!-- Inactivity confirmation checkbox -->
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px 16px;margin-bottom:14px">
+          <div style="font-size:0.82rem;font-weight:700;color:#92400e;margin-bottom:10px">
+            <i class="fas fa-shield-alt mr-1"></i>Inactivity Confirmation — Please confirm before closing:
+          </div>
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:0">
+            <input type="checkbox" id="p8ConfirmChk" style="margin-top:3px;width:16px;height:16px;flex-shrink:0" onchange="handleP8Confirm()">
+            <span style="font-size:0.84rem;color:#78350f;line-height:1.5">
+              I confirm that <strong id="p8ConfirmEmpName"></strong> has been manually marked
+              <strong>INACTIVE</strong> in the <strong>HR Master Portal</strong>,
+              and the exit process is ready to be permanently closed.
+            </span>
+          </label>
+        </div>
+
+        <!-- Previous step remarks -->
+        <div id="p8PrevPanel" class="prev-step-panel" style="display:none">
+          <div class="psp-label"><i class="fas fa-history mr-1"></i>P7 — Letter Issuance Remarks</div>
+          <div class="psp-remarks" id="p8PrevRemarks"></div>
+          <div class="psp-attachment" id="p8PrevAttachment"></div>
+        </div>
+
+        <form id="p8Form" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label>Remarks <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="remarks" rows="3" required
+                      placeholder="e.g. Employee marked inactive in HR Master Portal, all systems updated, exit complete."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Attachment <small class="text-muted">(optional)</small></label>
+            <input type="file" class="form-control-file" name="attachment"
+                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx">
+          </div>
+          <div id="p8WarnNotConfirmed" style="display:none;background:#fee2e2;color:#991b1b;border-radius:6px;padding:8px 12px;font-size:0.82rem;font-weight:600;margin-bottom:10px">
+            <i class="fas fa-exclamation-circle mr-1"></i>Please confirm the employee has been marked inactive before closing.
+          </div>
+          <button type="submit" class="btn btn-danger btn-block font-weight-bold" id="p8SubmitBtn" disabled style="opacity:0.5">
+            <i class="fas fa-lock mr-1"></i>Confirm &amp; Close Exit Process
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     SCRIPTS
+══════════════════════════════════ -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+
+/* ══════════════════════════════════════════════════
+   HOLIDAY SYSTEM
+══════════════════════════════════════════════════ */
+var _holidays = [];   // [{id, holiday_name, location, date}]
+
+function loadHolidays() {
+  fetch("/exit/holidays")
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(list){
+      _holidays = list || [];
+      renderHolidayNotice();
+    })
+    .catch(function(){ _holidays = []; });
+}
+
+function renderHolidayNotice() {
+  var today = new Date();
+  var in30  = new Date(today); in30.setDate(in30.getDate() + 30);
+  var upcoming = _holidays.filter(function(h){
+    var d = new Date(h.date);
+    return d >= today && d <= in30;
+  });
+  var bar  = document.getElementById("holidayNoticeBar");
+  var text = document.getElementById("holidayNoticeText");
+  if (upcoming.length && bar) {
+    bar.style.display = "block";
+    text.textContent = upcoming.slice(0,3).map(function(h){
+      return h.holiday_name + " (" + h.date + (h.location ? " — " + h.location : "") + ")";
+    }).join("; ");
+  }
+}
+
+function checkExitDateHoliday() {
+  var val       = document.getElementById("exitDateInput").value;
+  var minWarn   = document.getElementById("exitDateMinWarn");
+  var warn      = document.getElementById("exitDateHolidayWarn");
+  var txt       = document.getElementById("exitDateHolidayText");
+  var submitBtn = document.getElementById("exitSubmitBtn");
+
+  if (minWarn) minWarn.style.display = "none";
+  warn.style.display = "none";
+
+  if (!val) return;
+
+  var selected = new Date(val);
+  selected.setHours(0, 0, 0, 0);
+
+  // ── 7-day minimum check ──
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  var minDate = new Date(today);
+  minDate.setDate(today.getDate() + 7);
+
+  if (selected < minDate) {
+    if (minWarn) minWarn.style.display = "block";
+    if (submitBtn) submitBtn.disabled = true;
+    return;
+  }
+
+  // Re-enable submit if employee already confirmed
+  if (_selectedCode && submitBtn) submitBtn.disabled = false;
+
+  // ── Sunday check ──
+  if (selected.getDay() === 0) {
+    warn.style.display = "block";
+    txt.textContent = "This date is a Sunday (holiday). Deadlines will shift to the next working day.";
+    return;
+  }
+  // ── DB holiday check ──
+  var match = _holidays.find(function(h){ return h.date === val; });
+  if (match) {
+    warn.style.display = "block";
+    txt.textContent = "This date is a public holiday: " + match.holiday_name + ". Deadlines will shift accordingly.";
+    return;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   EMPLOYEE SEARCH DROPDOWN
+══════════════════════════════════════════════════ */
+
+var _allEmployees   = [];
+var _selectedCode   = "";
+var _focusedIndex   = -1;
+var _ddVisible      = false;
+var _currentMatches = [];
+
+var _portal = document.createElement("div");
+_portal.id  = "empDropdownPortal";
+_portal.innerHTML =
+  '<div class="dd-header">' +
+    '<span id="ddCountLabel">0 employees</span>' +
+    '<span style="color:#7dd3fc;font-size:0.7rem">↑↓ navigate &nbsp;· Enter select &nbsp;· Esc close</span>' +
+  '</div>' +
+  '<div class="dd-list" id="ddList"></div>';
+document.body.appendChild(_portal);
+
+var _ddList  = document.getElementById("ddList");
+var _ddCount = document.getElementById("ddCountLabel");
+
+function loadAllEmployees() {
+  fetch("/exit/all_employees")
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(list){ _allEmployees = list || []; })
+    .catch(function(){ _allEmployees = []; });
+}
+
+function positionPortal() {
+  var inp  = document.getElementById("empSearch");
+  if (!inp) return;
+  var rect = inp.getBoundingClientRect();
+  _portal.style.left  = rect.left + "px";
+  _portal.style.top   = (rect.bottom + 3) + "px";
+  _portal.style.width = rect.width + "px";
+}
+
+function openDropdown(query) {
+  var q = (query || "").trim().toLowerCase();
+  _currentMatches = q
+    ? _allEmployees.filter(function(e){
+        return e.code.toLowerCase().indexOf(q) !== -1
+            || e.name.toLowerCase().indexOf(q) !== -1;
+      })
+    : _allEmployees.slice();
+  _currentMatches = _currentMatches.slice(0, 80);
+  _focusedIndex   = -1;
+  renderList();
+  positionPortal();
+  _portal.style.display = "block";
+  _ddVisible = true;
+  var chevIco = document.getElementById("empChevronIcon");
+  if (chevIco) chevIco.style.transform = "rotate(180deg)";
+}
+
+function closeDropdown() {
+  _portal.style.display = "none";
+  _ddVisible = false;
+  _focusedIndex = -1;
+  var chevIco = document.getElementById("empChevronIcon");
+  if (chevIco) chevIco.style.transform = "rotate(0deg)";
+}
+
+function renderList() {
+  _ddCount.textContent = _currentMatches.length + " employee" + (_currentMatches.length !== 1 ? "s" : "");
+  if (!_currentMatches.length) {
+    _ddList.innerHTML = '<div class="dd-empty"><i class="fas fa-search mr-2"></i>No employees match.</div>';
+    return;
+  }
+  _ddList.innerHTML = _currentMatches.map(function(e, i){
+    var dotCls  = e.active ? "active" : "inactive";
+    var tagHtml = e.active
+      ? '<span class="emp-tag tag-active">ACTIVE</span>'
+      : '<span class="emp-tag tag-inactive">INACTIVE</span>';
+    return '<div class="emp-opt" data-index="' + i + '" data-code="' + e.code + '" data-active="' + (e.active ? "1" : "0") + '">'
+      + '<span class="emp-dot ' + dotCls + '"></span>'
+      + '<span class="emp-code">' + e.code + '</span>'
+      + '<span class="emp-name">— ' + escHtml(e.name) + '</span>'
+      + tagHtml
+      + '</div>';
+  }).join('');
+}
+
+function escHtml(s) {
+  return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function applyFocus(idx) {
+  var opts = _ddList.querySelectorAll(".emp-opt");
+  opts.forEach(function(o, i){ o.classList.toggle("focused", i === idx); });
+  if (idx >= 0 && opts[idx]) opts[idx].scrollIntoView({ block: "nearest" });
+  _focusedIndex = idx;
+}
+
+function selectEmployee(code, active) {
+  var emp = _allEmployees.find(function(x){ return x.code === code; }) || { code: code, name: "", active: active };
+  var inp = document.getElementById("empSearch");
+  inp.value = code + "  —  " + emp.name;
+  inp.classList.remove("selected", "selected-inactive");
+  inp.classList.add(emp.active ? "selected" : "selected-inactive");
+  document.getElementById("empCodeInput").value = code;
+  document.getElementById("empClearBtn").style.display = "block";
+  _selectedCode = code;
+  var warn = document.getElementById("empStatusWarn");
+  if (warn) warn.style.display = emp.active ? "none" : "flex";
+  closeDropdown();
+  fetchEmployee(code);
+}
+
+function clearEmpSelection() {
+  var inp = document.getElementById("empSearch");
+  if (!inp) return;
+  inp.value = "";
+  inp.classList.remove("selected", "selected-inactive");
+  document.getElementById("empCodeInput").value = "";
+  document.getElementById("empClearBtn").style.display = "none";
+  var w = document.getElementById("empStatusWarn"); if (w) w.style.display = "none";
+  var f = document.getElementById("empFetchBox");   if (f) f.style.display = "none";
+  var s = document.getElementById("exitSubmitBtn"); if (s) s.disabled = true;
+  _selectedCode = "";
+  inp.focus();
+  openDropdown("");
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  loadAllEmployees();
+  loadHolidays();
+
+  var inp      = document.getElementById("empSearch");
+  if (!inp) return;   // Dept HOD — no create form
+  var clearBtn  = document.getElementById("empClearBtn");
+  var chevBtn   = document.getElementById("empChevronBtn");
+
+  chevBtn.addEventListener("mousedown", function(e){
+    e.preventDefault();
+    if (_ddVisible) { closeDropdown(); inp.focus(); }
+    else { inp.focus(); openDropdown(inp.value); }
+  });
+  inp.addEventListener("focus", function(){ openDropdown(this.value); });
+  inp.addEventListener("input", function(){
+    document.getElementById("empCodeInput").value = "";
+    var s = document.getElementById("exitSubmitBtn"); if (s) s.disabled = true;
+    var f = document.getElementById("empFetchBox");   if (f) f.style.display = "none";
+    var w = document.getElementById("empStatusWarn"); if (w) w.style.display = "none";
+    inp.classList.remove("selected", "selected-inactive");
+    clearBtn.style.display = this.value ? "block" : "none";
+    _selectedCode = "";
+    openDropdown(this.value);
+  });
+  inp.addEventListener("keydown", function(e){
+    if (!_ddVisible) {
+      if (e.key === "ArrowDown" || e.key === "Enter") { openDropdown(this.value); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "ArrowDown") { e.preventDefault(); applyFocus(Math.min(_focusedIndex + 1, _currentMatches.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); applyFocus(Math.max(_focusedIndex - 1, 0)); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      if (_focusedIndex >= 0 && _currentMatches[_focusedIndex]) {
+        var m = _currentMatches[_focusedIndex];
+        selectEmployee(m.code, m.active);
+      }
+    } else if (e.key === "Escape") { closeDropdown(); }
+  });
+  _ddList.addEventListener("mousedown", function(e){
+    var opt = e.target.closest(".emp-opt");
+    if (!opt) return;
+    e.preventDefault();
+    selectEmployee(opt.dataset.code, opt.dataset.active === "1");
+  });
+  clearBtn.addEventListener("click", function(){ clearEmpSelection(); });
+  document.addEventListener("mousedown", function(e){
+    if (!_portal.contains(e.target) && e.target !== inp && e.target !== clearBtn && e.target !== chevBtn && !chevBtn.contains(e.target)) {
+      closeDropdown();
+    }
+  });
+  window.addEventListener("scroll",  positionPortal, true);
+  window.addEventListener("resize",  positionPortal);
+});
+
+/* ══ EMPLOYEE FETCH ══ */
+function fetchEmployee(code) {
+  if (!code) code = (_selectedCode || "").trim().toUpperCase();
+  if (!code) { alert("Please select an employee from the dropdown first."); return; }
+
+  fetch("/exit/fetch_employee/" + encodeURIComponent(code))
+    .then(function(r){
+      if (!r.ok) throw new Error("Employee not found in HR Master.");
+      return r.json();
+    })
+    .then(function(d){
+      document.getElementById("ef_name").textContent     = d.Person_Accountable || "—";
+      document.getElementById("ef_desig").textContent    = d.Designation         || "—";
+      document.getElementById("ef_dept").textContent     = d.Department          || "—";
+      document.getElementById("ef_hod").textContent      = (d.HOD || "—") + (d.HOD_ID ? " (" + d.HOD_ID + ")" : "");
+      document.getElementById("ef_doj").textContent      = d.DOJ                 || "—";
+      document.getElementById("ef_doer").textContent     = d.Reporting_DOER      || "—";
+      document.getElementById("ef_location").textContent = d.Location            || "—";
+
+      document.getElementById("hid_name").value    = d.Person_Accountable || "";
+      document.getElementById("hid_dept").value    = d.Department          || "";
+      document.getElementById("hid_hod").value     = d.HOD                 || "";
+      document.getElementById("hid_hod_id").value  = d.HOD_ID              || "";
+      document.getElementById("hid_doj").value     = d.DOJ                 || "";
+      document.getElementById("hid_doer").value    = d.Reporting_DOER      || "";
+      document.getElementById("hid_doer_id").value = d.Reporting_DOER_id   || "";
+
+      var isActive = (d.STATUS || "").toUpperCase() === "ACTIVE";
+      document.getElementById("empFetchBox").style.display = "block";
+      var w = document.getElementById("empStatusWarn");
+      if (w) w.style.display = isActive ? "none" : "flex";
+      // Only enable submit if exit date also passes the 7-day minimum
+      checkExitDateHoliday();
+      var exitVal = (document.getElementById("exitDateInput") || {}).value;
+      if (exitVal) {
+        var sel = new Date(exitVal); sel.setHours(0,0,0,0);
+        var minD = new Date(); minD.setHours(0,0,0,0); minD.setDate(minD.getDate()+7);
+        document.getElementById("exitSubmitBtn").disabled = (sel < minD);
+      } else {
+        document.getElementById("exitSubmitBtn").disabled = false;
+      }
+    })
+    .catch(function(err){
+      alert(err.message || "Failed to fetch employee details.");
+      document.getElementById("empFetchBox").style.display = "none";
+      document.getElementById("exitSubmitBtn").disabled = true;
+    });
+}
+
+/* ══ FILL PREVIOUS STEP PANEL ══ */
+function fillPanel(panelId, labelId, remarksId, attachId, labelText, remarks, attach) {
+  var panel = document.getElementById(panelId);
+  if (!panel) return;
+  if (remarks || attach) {
+    panel.style.display = "block";
+    if (labelId && labelText) document.getElementById(labelId).innerHTML = '<i class="fas fa-history mr-1"></i>' + labelText;
+    document.getElementById(remarksId).textContent = remarks ? "Remarks: " + remarks : "No remarks recorded.";
+    var aEl = document.getElementById(attachId);
+    aEl.innerHTML = attach
+      ? '<a href="/' + attach + '" target="_blank" download><i class="fas fa-download mr-1"></i>Download Attachment</a>'
+      : '<span class="text-muted">No attachment.</span>';
+  } else {
+    panel.style.display = "none";
+  }
+}
+
+/* ══ CHECK EMP STATUS ══ */
+function checkEmpStatusForModal(code, warnElId) {
+  if (!code) return;
+  fetch("/exit/fetch_employee/" + encodeURIComponent(code))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var el = document.getElementById(warnElId);
+      if (el) el.style.display = (d.STATUS||"").toUpperCase() === "ACTIVE" ? "none" : "block";
+    })
+    .catch(function(){});
+}
+
+/* ══ P2 DECISION MODAL ══ */
+$(document).on("click", ".act-decision-btn", function() {
+  var $b = $(this);
+  document.getElementById("decisionForm").action = $b.data("url");
+  document.getElementById("decisionModalTitle").innerHTML =
+    '<i class="fas fa-gavel mr-2 text-warning"></i>' + $b.data("title");
+  fillPanel("decisionPrevPanel","decisionPrevLabel","decisionPrevRemarks","decisionPrevAttachment",
+    $b.data("prev-label"), $b.data("prev-remarks"), $b.data("prev-attach"));
+  var btn = document.getElementById("decisionSubmitBtn");
+  btn.className = "btn btn-warning btn-block text-dark font-weight-bold";
+  btn.innerHTML = '<i class="fas fa-paper-plane mr-1"></i>Submit Decision';
+  document.getElementById("decisionSelect").value = "";
+  document.getElementById("decisionInactiveWarn").style.display = "none";
+  checkEmpStatusForModal($b.data("emp-code"), "decisionInactiveWarn");
+  $("#decisionModal").modal("show");
+});
+
+$(document).on("change", "#decisionSelect", function() {
+  var btn = document.getElementById("decisionSubmitBtn");
+  if (this.value === "YES") {
+    btn.className = "btn btn-success btn-block font-weight-bold";
+    btn.innerHTML = '<i class="fas fa-check mr-1"></i>Accept Resignation → Move to P3';
+  } else if (this.value === "NO") {
+    btn.className = "btn btn-danger btn-block font-weight-bold";
+    btn.innerHTML = '<i class="fas fa-times mr-1"></i>Reject Resignation → P9 End';
+  } else {
+    btn.className = "btn btn-warning btn-block text-dark font-weight-bold";
+    btn.innerHTML = '<i class="fas fa-paper-plane mr-1"></i>Submit Decision';
+  }
+});
+
+/* ══ CHECKLIST ══ */
+/* ── Checklist items per step ── */
+var _CHK_ITEMS = {
+  3: [
+    "1. Update Exit Details in Google Sheet",
+    "2. Update Exit Details in ERP",
+    "3. Update Exit Details in Intrasite V2 &amp; Org Chart"
+  ],
+  4: [
+    "1. Update Exit Details in Google Sheet",
+    "2. Update Exit Details in ERP",
+    "3. Update Exit Details in Intrasite V2 &amp; Org Chart",
+    "4. Mark Employee as INACTIVE in HR Master Portal"
+  ]
+};
+var _chkCount = 3;
+
+function handleChkChange(n) {
+  var chk = [null];
+  var lbl = [null];
+  for (var i = 1; i <= 4; i++) {
+    chk.push(document.getElementById("chk" + i));
+    lbl.push(document.getElementById("lbl" + i));
+  }
+  if (!chk[n].checked) {
+    for (var j = n + 1; j <= _chkCount; j++) {
+      if (!chk[j]) continue;
+      chk[j].checked = false; chk[j].disabled = true;
+      lbl[j].style.opacity = "0.4"; lbl[j].style.pointerEvents = "none";
+    }
+  }
+  if (chk[n].checked && n < _chkCount && chk[n+1]) {
+    chk[n+1].disabled = false;
+    lbl[n+1].style.opacity = "1"; lbl[n+1].style.pointerEvents = "auto";
+  }
+  var allChecked = true;
+  for (var k = 1; k <= _chkCount; k++) { if (!chk[k] || !chk[k].checked) { allChecked = false; break; } }
+  var submitBtn = document.getElementById("stepSubmitBtn");
+  var warn = document.getElementById("chkWarning");
+  if (document.getElementById("stepChecklist").style.display !== "none") {
+    submitBtn.disabled = !allChecked;
+    if (warn) warn.style.display = allChecked ? "none" : "block";
+    submitBtn.style.opacity = allChecked ? "1" : "0.5";
+  }
+}
+
+function resetChecklist(count) {
+  _chkCount = count || 3;
+  var items = _CHK_ITEMS[_chkCount] || _CHK_ITEMS[3];
+  var lbl4 = document.getElementById("lbl4");
+  if (lbl4) lbl4.style.display = _chkCount >= 4 ? "flex" : "none";
+  items.forEach(function(text, i) {
+    var span = document.getElementById("chkText" + (i+1));
+    if (span) span.innerHTML = text;
+  });
+  for (var i = 1; i <= 4; i++) {
+    var el  = document.getElementById("chk" + i);
+    var lbl = document.getElementById("lbl" + i);
+    if (!el || !lbl) continue;
+    el.checked = false; el.disabled = (i > 1);
+    lbl.style.opacity = i === 1 ? "1" : "0.4";
+    lbl.style.pointerEvents = i === 1 ? "auto" : "none";
+  }
+  var warn = document.getElementById("chkWarning");
+  if (warn) warn.style.display = "none";
+}
+
+/* ══ GENERAL STEP MODAL ══ */
+$(document).on("click", ".act-step-btn", function() {
+  var $b = $(this);
+  var confirmTxt = $b.data("confirm-text");
+  if (confirmTxt && !confirm(confirmTxt)) return;
+
+  document.getElementById("stepForm").action = $b.data("url");
+  document.getElementById("stepModalTitle").innerHTML =
+    '<i class="fas fa-forward mr-2 text-info"></i>' + $b.data("title");
+
+  fillPanel("stepPrevPanel","stepPrevLabel","stepPrevRemarks","stepPrevAttachment",
+    $b.data("prev-label") || "Previous Step Remarks",
+    $b.data("prev-remarks") || "",
+    $b.data("prev-attach")  || "");
+
+  document.getElementById("stepInactiveWarn").style.display = "none";
+  checkEmpStatusForModal($b.data("emp-code"), "stepInactiveWarn");
+
+  var showChk  = $b.data("show-checklist") == "1";
+  var chkCount = parseInt($b.data("checklist-count")) || 3;
+  var chkBox   = document.getElementById("stepChecklist");
+  chkBox.style.display = showChk ? "block" : "none";
+  if (showChk) resetChecklist(chkCount);
+
+  var submitBtn = document.getElementById("stepSubmitBtn");
+  var btnClass  = $b.data("btn-class") || "btn-primary";
+  var btnText   = $b.data("btn-text")  || "Submit & Move Forward";
+  submitBtn.className = "btn " + btnClass + " btn-block font-weight-bold";
+  submitBtn.innerHTML = '<i class="fas fa-arrow-right mr-1"></i>' + btnText;
+  submitBtn.disabled  = showChk;
+  submitBtn.style.opacity = showChk ? "0.5" : "1";
+
+  $("#stepModal").modal("show");
+});
+
+document.getElementById("stepForm").addEventListener("submit", function(e){
+  var chkBox = document.getElementById("stepChecklist");
+  if (chkBox.style.display !== "none") {
+    var allChecked = true;
+    for (var i = 1; i <= _chkCount; i++) {
+      var el = document.getElementById("chk" + i);
+      if (!el || !el.checked) { allChecked = false; break; }
+    }
+    if (!allChecked) {
+      e.preventDefault();
+      document.getElementById("chkWarning").style.display = "block";
+    }
+  }
+});
+
+/* ══ P9 MODAL ══ */
+$(document).on("click", ".act-p4-btn", function() {
+  var $b = $(this);
+  document.getElementById("p9Form").action = $b.data("url");
+  fillPanel("p9PrevPanel", null, "p9PrevRemarks","p9PrevAttachment",
+    null, $b.data("prev-remarks"), $b.data("prev-attach"));
+  document.getElementById("p9InactiveWarn").style.display = "none";
+  checkEmpStatusForModal($b.data("emp-code"), "p9InactiveWarn");
+  $("#p9Modal").modal("show");
+});
+
+/* ══ P8 MODAL — Inactivity Confirmation ══ */
+$(document).on("click", ".act-p8-btn", function() {
+  var $b = $(this);
+  var empName = $b.data("emp-name") || "";
+  var empCode = $b.data("emp-code") || "";
+
+  document.getElementById("p8Form").action = $b.data("url");
+  document.getElementById("p8EmpName").textContent = empName;
+  document.getElementById("p8EmpCode").textContent = empCode;
+  document.getElementById("p8ConfirmEmpName").textContent = empName;
+
+  // Reset confirmation state
+  document.getElementById("p8ConfirmChk").checked = false;
+  document.getElementById("p8SubmitBtn").disabled = true;
+  document.getElementById("p8SubmitBtn").style.opacity = "0.5";
+  document.getElementById("p8WarnNotConfirmed").style.display = "none";
+
+  // Fill previous step remarks
+  fillPanel("p8PrevPanel", null, "p8PrevRemarks", "p8PrevAttachment",
+    null, $b.data("prev-remarks") || "", $b.data("prev-attach") || "");
+
+  $("#p8Modal").modal("show");
+});
+
+document.getElementById("p8Form").addEventListener("submit", function(e) {
+  if (!document.getElementById("p8ConfirmChk").checked) {
+    e.preventDefault();
+    document.getElementById("p8WarnNotConfirmed").style.display = "block";
+  }
+});
+
+function handleP8Confirm() {
+  var chk  = document.getElementById("p8ConfirmChk");
+  var btn  = document.getElementById("p8SubmitBtn");
+  var warn = document.getElementById("p8WarnNotConfirmed");
+  btn.disabled      = !chk.checked;
+  btn.style.opacity = chk.checked ? "1" : "0.5";
+  if (chk.checked && warn) warn.style.display = "none";
+}
+
+/* ══ FILTERS ══ */
+function applyFilters() {
+  var idVal   = (document.getElementById("filterTaskId").value || "").trim().toLowerCase();
+  var empVal  = (document.getElementById("filterEmp").value   || "").trim().toLowerCase();
+  var deptVal = (document.getElementById("filterDept").value  || "").trim().toLowerCase();
+  var stepVal = document.getElementById("filterStep").value;
+  var exitVal = document.getElementById("filterExitDate").value;
+
+  var rows = document.querySelectorAll("#exitTable tbody tr");
+  var visible = 0;
+  rows.forEach(function(row) {
+    // Never hide the "empty state" row
+    if (row.querySelector(".empty-state")) { visible++; return; }
+    var show = true;
+    if (idVal   && (row.dataset.id   || "").toLowerCase().indexOf(idVal)   === -1) show = false;
+    if (empVal  && (row.dataset.emp  || "").toLowerCase().indexOf(empVal)  === -1) show = false;
+    if (deptVal && (row.dataset.dept || "").toLowerCase().indexOf(deptVal) === -1) show = false;
+    if (stepVal && (row.dataset.stage || "") !== stepVal)                          show = false;
+    if (exitVal && (row.dataset.exitdate || "") !== exitVal)                       show = false;
+    row.style.display = show ? "" : "none";
+    if (show) visible++;
+  });
+  var total = rows.length;
+  document.getElementById("taskCount").textContent =
+    visible === total
+      ? (total + " task" + (total !== 1 ? "s" : ""))
+      : (visible + " of " + total + " tasks");
+}
+
+function clearFilters() {
+  ["filterTaskId","filterEmp","filterDept"].forEach(function(id){ document.getElementById(id).value = ""; });
+  document.getElementById("filterStep").value = "";
+  document.getElementById("filterExitDate").value = "";
+  applyFilters();
+}
+
+$(document).ready(function() {
+  applyFilters();
+
+  $('#exitFormModal').on('hidden.bs.modal', function(){
+    closeDropdown();
+    clearEmpSelection();
+    var f = document.getElementById("exitCreateForm"); if (f) f.reset();
+    var fb = document.getElementById("empFetchBox");   if (fb) fb.style.display = "none";
+    var sw = document.getElementById("empStatusWarn"); if (sw) sw.style.display = "none";
+    var sb = document.getElementById("exitSubmitBtn"); if (sb) sb.disabled = true;
+    var dw = document.getElementById("exitDateHolidayWarn"); if (dw) dw.style.display = "none";
+  });
+
+  $('#exitFormModal').on('scroll', function(){ positionPortal(); });
+});
+
+/* ══ EXPORT PDF ══ */
+function exportTablePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  doc.setFontSize(13);
+  doc.text("HR Exit Process — Workflow Tasks", 40, 36);
+  doc.setFontSize(8);
+  doc.text("Exported: " + new Date().toLocaleString(), 40, 50);
+
+  const headers = ["ID","Employee","Department","Exit Date","Deadline","Step","Status"];
+  const rows = [];
+  document.querySelectorAll("#exitTable tbody tr").forEach(function(tr) {
+    if (tr.style.display === "none" || tr.querySelector(".empty-state")) return;
+    var cells = tr.querySelectorAll("td");
+    if (cells.length < 8) return;
+    rows.push([
+      cells[0].innerText.trim(),
+      cells[1].innerText.trim(),
+      cells[2].innerText.trim(),
+      cells[3].innerText.trim(),
+      cells[4].innerText.trim(),
+      cells[5].innerText.trim(),
+      cells[9].innerText.trim()
+    ]);
+  });
+
+  doc.autoTable({
+    startY: 60, head: [headers], body: rows,
+    styles: { fontSize: 7.5, cellPadding: 4 },
+    headStyles: { fillColor: [15,23,42], textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [240,249,255] },
+    margin: { left: 40, right: 40 }
+  });
+  doc.save("HR_Exit_Process_" + new Date().toISOString().slice(0,10) + ".pdf");
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Exit Process — All Stage Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="{{ url_for('static', filename='images/Logo.png') }}">
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+<style>
+:root {
+  --primary:#0ea5e9; --dark-nav:#0f172a; --bg:#e8f4f8; --amber:#f59e0b;
+  --card-shadow:0 2px 12px rgba(0,0,0,0.09);
+}
+*{box-sizing:border-box}
+body{background:var(--bg);font-family:system-ui,-apple-system,sans-serif;margin:0}
+
+/* ── TOPNAV ── */
+.top-navbar{
+  background:var(--dark-nav);padding:0 20px;
+  display:flex;align-items:center;justify-content:space-between;
+  height:62px;position:sticky;top:0;z-index:1000;
+  box-shadow:0 2px 8px rgba(0,0,0,0.3);
+}
+.top-navbar .brand{display:flex;align-items:center;gap:10px}
+.top-navbar .brand img{height:38px}
+.top-navbar .brand-text{color:#fff;font-weight:700;font-size:1.1rem;letter-spacing:.5px}
+.top-navbar .brand-text span{color:var(--primary)}
+.top-navbar .nav-center{display:flex;align-items:center;gap:6px}
+.top-navbar .nav-pill{
+  color:#cbd5e1;padding:6px 14px;border-radius:20px;font-size:.85rem;
+  text-decoration:none;transition:all .2s;display:flex;align-items:center;gap:6px;
+}
+.top-navbar .nav-pill:hover{background:rgba(255,255,255,.1);color:#fff;text-decoration:none}
+.top-navbar .nav-pill.active{background:var(--primary);color:#fff}
+.top-navbar .nav-right{display:flex;align-items:center;gap:10px}
+.btn-back-dash{
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  color:#cbd5e1;padding:5px 12px;border-radius:8px;font-size:.8rem;
+  text-decoration:none;white-space:nowrap;transition:all .2s;
+}
+.btn-back-dash:hover{background:rgba(255,255,255,.15);color:#fff;text-decoration:none}
+.profile-chip{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,.07);border-radius:30px;padding:4px 12px 4px 4px;
+  border:1px solid rgba(255,255,255,.12);
+}
+.profile-chip img{width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid var(--primary)}
+.chip-name{color:#f1f5f9;font-size:.82rem;font-weight:600}
+.chip-id{color:#64748b;font-size:.72rem}
+
+/* ── MAIN ── */
+.main-content{padding:22px 24px;max-width:100%}
+.page-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;flex-wrap:wrap;gap:10px;
+}
+.page-title{font-size:1.25rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px}
+.page-title i{color:var(--amber)}
+.admin-crown{
+  display:inline-flex;align-items:center;gap:5px;
+  background:linear-gradient(135deg,#f59e0b,#d97706);
+  color:#fff;font-size:.72rem;font-weight:800;letter-spacing:.4px;
+  padding:3px 10px;border-radius:12px;text-transform:uppercase;
+}
+
+/* ── METRIC CARDS ── */
+.metric-row{display:grid;grid-template-columns:repeat(8,1fr);gap:10px;margin-bottom:18px}
+@media(max-width:1200px){.metric-row{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:768px){.metric-row{grid-template-columns:repeat(2,1fr)}}
+.mc{
+  border-radius:10px;padding:12px 14px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.07);
+  display:flex;align-items:center;gap:10px;
+  position:relative;overflow:hidden;transition:transform .15s;
+}
+.mc:hover{transform:translateY(-2px)}
+.mc .mc-icon{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+.mc .mc-val{font-size:1.5rem;font-weight:800;line-height:1}
+.mc .mc-lbl{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;opacity:.7;margin-top:2px}
+.mc .mc-bg{position:absolute;right:-8px;bottom:-8px;font-size:3.5rem;opacity:.07;pointer-events:none}
+.mc-total   {background:#eff6ff;color:#1e40af}.mc-total   .mc-icon{background:#dbeafe;color:#2563eb}
+.mc-open    {background:#fefce8;color:#713f12}.mc-open    .mc-icon{background:#fef9c3;color:#ca8a04}
+.mc-closed  {background:#f0fdf4;color:#14532d}.mc-closed  .mc-icon{background:#dcfce7;color:#16a34a}
+.mc-rejected{background:#fff7ed;color:#9a3412}.mc-rejected .mc-icon{background:#ffedd5;color:#ea580c}
+.mc-p3      {background:#f0f9ff;color:#0369a1}.mc-p3      .mc-icon{background:#e0f2fe;color:#0284c7}
+.mc-p4p9    {background:#f5f3ff;color:#6b21a8}.mc-p4p9    .mc-icon{background:#ede9fe;color:#7c3aed}
+.mc-overdue {background:#fff1f2;color:#9f1239}.mc-overdue .mc-icon{background:#ffe4e6;color:#e11d48}
+.mc-30d     {background:#fdf4ff;color:#701a75}.mc-30d     .mc-icon{background:#fae8ff;color:#a21caf}
+
+/* ── FILTER BAR ── */
+.filter-label{display:block;font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.card{border:1px solid #e2e8f0 !important;border-radius:12px;box-shadow:var(--card-shadow);margin-bottom:16px}
+html { scroll-padding-top: 165px; }
+
+/* ─────────────────────────────────────
+   STAGE TABLE
+─────────────────────────────────────*/
+.stage-table-wrap{
+  overflow-x:auto;
+  overflow-y:auto;
+  max-height:65vh;
+  border-radius:0 0 12px 12px;
+  background:#fff;
+}
+.stage-table{
+  width:max-content;
+  min-width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  font-size:.74rem;
+  white-space:nowrap;
+}
+.stage-table th,
+.stage-table td{
+  border-right:1px solid #cbd5e1;
+  border-bottom:1px solid #cbd5e1;
+  padding:6px 8px;
+  vertical-align:middle;
+}
+.stage-table th:first-child,
+.stage-table td:first-child{ border-left:1px solid #cbd5e1; }
+.stage-table thead tr:first-child th{ border-top:1px solid #cbd5e1; }
+
+/* HEADER ROW 1 */
+.stage-table thead tr.hdr-main th{
+  background:#0f172a;color:#fff;font-weight:700;font-size:.76rem;
+  text-align:center;position:sticky;top:0;z-index:30;
+}
+/* HEADER ROW 2 */
+.stage-table thead tr.hdr-stage th{
+  text-align:center;font-size:.7rem;font-weight:700;
+  position:sticky;top:38px;z-index:29;
+}
+/* HEADER ROW 3 */
+.stage-table thead tr.hdr-sub th{
+  font-size:.66rem;font-weight:600;text-align:center;
+  position:sticky;top:70px;z-index:28;
+}
+.stage-table thead{ background:#0f172a; }
+.stage-table thead th{ box-shadow:0 2px 0 #cbd5e1; }
+.stage-table tbody td{ background:#ffffff;color:#1e293b; }
+.stage-table tbody tr.data-row:hover td{ background:#f0f9ff; }
+
+/* stage colour groups */
+.th-p1{background:#1e40af;color:#dbeafe}.th-p2{background:#854d0e;color:#fef9c3}
+.th-p3{background:#0369a1;color:#e0f2fe}.th-p4{background:#6d28d9;color:#ede9fe}
+.th-p5{background:#065f46;color:#d1fae5}.th-p6{background:#166534;color:#dcfce7}
+.th-p7{background:#991b1b;color:#fee2e2}.th-p8{background:#7f1d1d;color:#fecaca}
+.th-p9{background:#4c1d95;color:#f3e8ff}
+.th-sub-p1{background:#dbeafe;color:#1e3a8a}.th-sub-p2{background:#fef9c3;color:#78350f}
+.th-sub-p3{background:#e0f2fe;color:#075985}.th-sub-p4{background:#ede9fe;color:#4c1d95}
+.th-sub-p5{background:#d1fae5;color:#064e3b}.th-sub-p6{background:#dcfce7;color:#14532d}
+.th-sub-p7{background:#fee2e2;color:#7f1d1d}.th-sub-p8{background:#fecaca;color:#7f1d1d}
+.th-sub-p9{background:#f3e8ff;color:#4c1d95}
+
+.info-cell{background:#f8fafc;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.td-done   {background:#f0fdf4;color:#14532d;font-size:.7rem;text-align:center}
+.td-pending{background:#fefce8;color:#713f12;font-size:.7rem;text-align:center}
+.td-date   {font-size:.7rem;text-align:center}
+.td-plain  {background:#f1f5f9;color:#94a3b8;text-align:center;font-size:.68rem}
+.td-attach {background:#f8fafc;text-align:center}
+.td-attach a{font-size:.7rem;font-weight:600}
+.td-remarks{max-width:120px;overflow:hidden;text-overflow:ellipsis;font-size:.72rem}
+
+/* row status left border */
+tbody tr.row-closed   td:first-child{border-left:4px solid #16a34a}
+tbody tr.row-rejected td:first-child{border-left:4px solid #ef4444}
+tbody tr.row-open     td:first-child{border-left:4px solid #f59e0b}
+tbody tr.row-overdue  td:first-child{border-left:4px solid #dc2626}
+
+/* status badges */
+.badge-open    {background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:12px;font-size:.68rem;font-weight:700}
+.badge-closed  {background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:12px;font-size:.68rem;font-weight:700}
+.badge-rejected{background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:12px;font-size:.68rem;font-weight:700}
+.badge-overdue {background:#ffe4e6;color:#9f1239;padding:2px 7px;border-radius:12px;font-size:.68rem;font-weight:700;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.65}}
+
+.stage-lozenge{display:inline-block;border-radius:5px;padding:1px 6px;font-size:.65rem;font-weight:800;letter-spacing:.4px;}
+
+/* debug panel */
+.debug-bar{
+  background:#0f172a;color:#94a3b8;font-size:.75rem;
+  padding:8px 14px;border-radius:8px;margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.debug-bar code{background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;font-size:.73rem}
+.debug-bar .dbg-ok{color:#4ade80}
+.debug-bar .dbg-warn{color:#fb923c}
+
+/* ──────────────────────────────────────────
+   DETAIL DRAWER — THE KEY FIX:
+   1. inline style="display:none" on each <tr> so JS can reliably toggle it
+   2. white-space:normal on the <td> overrides table's nowrap
+   3. min-width ensures the grid inside has room to render
+──────────────────────────────────────────*/
+.detail-drawer td{
+  padding:14px 18px;
+  white-space:normal !important;
+  min-width:720px;
+  background:#f0f9ff;
+  border-top:2px solid #bae6fd;
+}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:14px}
+.dg-item .dg-lbl{font-size:.68rem;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:.4px}
+.dg-item .dg-val{font-size:.82rem;color:#1e293b;margin-top:2px}
+
+/* audit log inside drawer */
+.audit-mini{margin-top:10px;border-radius:8px;overflow:hidden;border:1px solid #bae6fd}
+.audit-mini table{width:100%;border-collapse:collapse;font-size:.72rem;white-space:normal}
+.audit-mini th{background:#0369a1;color:#fff;padding:4px 8px;text-align:left}
+.audit-mini td{padding:4px 8px;border-bottom:1px solid #e0f2fe;color:#1e293b;white-space:normal}
+.audit-mini tr:last-child td{border-bottom:none}
+
+/* remarks grid */
+.remarks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;font-size:.75rem}
+.remark-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:7px 10px}
+.remark-card .rk-lbl{font-weight:800;color:#64748b;font-size:.68rem;margin-bottom:3px}
+
+@media(max-width:768px){
+  .top-navbar .nav-center{display:none}
+  .main-content{padding:14px}
+  .brand-text{display:none}
+}
+</style>
+</head>
+<body>
+
+{# ── ADMIN GUARD ── #}
+{% if not is_admin_user %}
+<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;flex-direction:column;gap:16px">
+  <i class="fas fa-lock" style="font-size:3rem;color:#ef4444"></i>
+  <div style="color:#f1f5f9;font-size:1.1rem;font-weight:700">Admin Access Only</div>
+  <a href="{{ url_for('exit_panel') }}" class="btn btn-outline-light btn-sm">← Back to Exit Panel</a>
+</div>
+{% else %}
+
+<!-- ══ TOPNAV ══ -->
+<nav class="top-navbar">
+  <div class="brand">
+    <img src="{{ url_for('static', filename='images/Logo.png') }}" alt="Logo" onerror="this.style.display='none'">
+    <span class="brand-text">FMS <span>HR</span></span>
+  </div>
+  <div class="nav-center">
+    <a href="{{ url_for('dashboard') }}" class="nav-pill"><i class="fas fa-th-large"></i> Dashboard</a>
+    <a href="{{ url_for('exit_admin_stage_dashboard') }}" class="nav-pill active"
+       style="background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.4)">
+      <i class="fas fa-layer-group"></i> All Stage Dashboard
+    </a>
+  </div>
+  <div class="nav-right">
+    <a href="{{ url_for('exit_panel') }}" class="btn-back-dash"><i class="fas fa-arrow-left"></i> Back to Panel</a>
+    <div class="profile-chip" title="{{ person_Accountable }}">
+      <img src="{{ url_for('static', filename=photo) if photo else '' }}" alt="Profile"
+           onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2216%22 fill=%22%23334155%22/%3E%3Ccircle cx=%2216%22 cy=%2213%22 r=%225%22 fill=%22%2394a3b8%22/%3E%3Cellipse cx=%2216%22 cy=%2226%22 rx=%228%22 ry=%225%22 fill=%22%2394a3b8%22/%3E%3C/svg%3E'">
+      <div class="chip-info">
+        <div class="chip-name">{{ person_Accountable }}</div>
+        <div class="chip-id">{{ emp_code }} &nbsp;·&nbsp; <span style="color:#f59e0b">Admin</span></div>
+      </div>
+    </div>
+    <a href="{{ url_for('logout') }}" class="nav-pill" style="padding:6px 10px" onclick="return confirm('Logout?')">
+      <i class="fas fa-sign-out-alt"></i>
+    </a>
+  </div>
+</nav>
+
+<!-- ══ MAIN CONTENT ══ -->
+<div class="main-content">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="page-title">
+      <i class="fas fa-layer-group"></i>
+      HR Exit Process — All Stage Dashboard
+      <span class="admin-crown"><i class="fas fa-crown mr-1"></i>Admin View</span>
+    </div>
+    <div class="d-flex" style="gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-sm btn-outline-secondary" onclick="toggleDebugBar()">
+        <i class="fas fa-bug mr-1"></i>Debug Info
+      </button>
+      <button class="btn btn-sm btn-outline-info" onclick="exportStagePDF()">
+        <i class="fas fa-file-pdf mr-1"></i>Export PDF
+      </button>
+      <button class="btn btn-sm" onclick="downloadFlowchart()"
+        style="background:rgba(245,158,11,0.12);color:#b45309;border:1px solid rgba(245,158,11,0.4);font-weight:600">
+        <i class="fas fa-project-diagram mr-1"></i>Flowchart
+      </button>
+    </div>
+  </div>
+
+  <!-- ── DEBUG BAR ── -->
+  <div class="debug-bar" id="debugBar" style="display:none">
+    <span><i class="fas fa-database mr-1" style="color:#38bdf8"></i>
+      DB: <code>fms_exit_process_annex.exit_requests</code> ⟷ <code>alcovedb_2024.Employee_Master</code>
+    </span>
+    <span>Rows fetched: <code>{{ tasks|length }}</code></span>
+    <span>Collation fix: <code class="dbg-ok">utf8mb4_unicode_ci COLLATE applied</code></span>
+    <span>Query time: <code>{{ '%.3f'|format(query_ms|default(0)) }} ms</code></span>
+    <span class="dbg-warn"><i class="fas fa-exclamation-triangle mr-1"></i>Admin-only route — do not share URL</span>
+    <span>Last refresh: <code>{{ now.strftime('%d/%m/%Y %H:%M:%S') }}</code></span>
+  </div>
+
+  <!-- ── METRIC CARDS ── -->
+  <div class="metric-row">
+    <div class="mc mc-total">
+      <div class="mc-icon"><i class="fas fa-list-ol"></i></div>
+      <div><div class="mc-val">{{ tasks|length }}</div><div class="mc-lbl">Total Requests</div></div>
+      <i class="fas fa-list-ol mc-bg"></i>
+    </div>
+    <div class="mc mc-open">
+      <div class="mc-icon"><i class="fas fa-hourglass-half"></i></div>
+      <div><div class="mc-val">{{ tasks|selectattr('status','equalto','OPEN')|list|length }}</div><div class="mc-lbl">In Progress</div></div>
+      <i class="fas fa-hourglass-half mc-bg"></i>
+    </div>
+    <div class="mc mc-closed">
+      <div class="mc-icon"><i class="fas fa-check-circle"></i></div>
+      <div><div class="mc-val">{{ tasks|selectattr('status','equalto','CLOSED')|list|length }}</div><div class="mc-lbl">Completed</div></div>
+      <i class="fas fa-check-circle mc-bg"></i>
+    </div>
+    <div class="mc mc-rejected">
+      <div class="mc-icon"><i class="fas fa-ban"></i></div>
+      <div><div class="mc-val">{{ tasks|selectattr('status','in',['REJECTED','CANCELLED'])|list|length }}</div><div class="mc-lbl">Rejected</div></div>
+      <i class="fas fa-ban mc-bg"></i>
+    </div>
+    <div class="mc mc-p3">
+      <div class="mc-icon"><i class="fas fa-edit"></i></div>
+      <div><div class="mc-val">{{ tasks|selectattr('workflow_stage','equalto','P3')|list|length }}</div><div class="mc-lbl">At P3</div></div>
+      <i class="fas fa-edit mc-bg"></i>
+    </div>
+    <div class="mc mc-p4p9">
+      <div class="mc-icon"><i class="fas fa-code-branch"></i></div>
+      <div><div class="mc-val">{{ tasks|selectattr('workflow_stage','equalto','P4')|list|length }}</div><div class="mc-lbl">At P4 (Dept HOD)</div></div>
+      <i class="fas fa-envelope mc-bg"></i>
+    </div>
+    <div class="mc mc-overdue">
+      <div class="mc-icon"><i class="fas fa-exclamation-circle"></i></div>
+      <div>
+        <div class="mc-val">{{ tasks|selectattr('status','equalto','OPEN')|selectattr('deadline_at','ne',none)|list|length }}</div>
+        <div class="mc-lbl">Has Deadline</div>
+      </div>
+      <i class="fas fa-exclamation-circle mc-bg"></i>
+    </div>
+    <div class="mc mc-30d">
+      <div class="mc-icon"><i class="fas fa-calendar-day"></i></div>
+      <div>
+        <div class="mc-val">{{ tasks|selectattr('status','equalto','OPEN')|list|length }}</div>
+        <div class="mc-lbl">Pending Action</div>
+      </div>
+      <i class="fas fa-calendar-day mc-bg"></i>
+    </div>
+  </div>
+
+  <!-- ── FILTER BAR ── -->
+  <div class="card mb-3">
+    <div class="card-body py-2 px-3">
+      <div class="form-row align-items-end">
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Request ID</label>
+          <input type="text" id="sdFilterId" class="form-control form-control-sm" placeholder="e.g. 5" oninput="sdApplyFilters()">
+        </div>
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Employee</label>
+          <input type="text" id="sdFilterEmp" class="form-control form-control-sm" placeholder="Name or Code" oninput="sdApplyFilters()">
+        </div>
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Department</label>
+          <input type="text" id="sdFilterDept" class="form-control form-control-sm" placeholder="Department" oninput="sdApplyFilters()">
+        </div>
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Current Step</label>
+          <select id="sdFilterStep" class="form-control form-control-sm" onchange="sdApplyFilters()">
+            <option value="">All Steps</option>
+            <option value="P2">P2 — HOD Confirmation</option>
+            <option value="P3">P3 — Update Details</option>
+            <option value="P4">P4 — Dept HOD: System Team Mail</option>
+            <option value="P5">P5 — Exit Interview Link</option>
+            <option value="P6">P6 — Handover + Clearance</option>
+            <option value="P7">P7 — Issue Letters</option>
+            <option value="P8">P8 — Mark Inactive &amp; Close</option>
+            <option value="P9">P9 — Rejected</option>
+          </select>
+        </div>
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Status</label>
+          <select id="sdFilterStatus" class="form-control form-control-sm" onchange="sdApplyFilters()">
+            <option value="">All Statuses</option>
+            <option value="OPEN">Open</option>
+            <option value="CLOSED">Closed</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+        </div>
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">&nbsp;</label>
+          <button class="btn btn-outline-secondary btn-sm btn-block" onclick="sdClearFilters()">
+            <i class="fas fa-times mr-1"></i>Clear
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STAGE TABLE CARD ── -->
+  <div class="card">
+    <div class="card-header" style="background:#0f172a;color:#fff;border-radius:12px 12px 0 0;padding:10px 16px">
+      <div class="d-flex align-items-center justify-content-between">
+        <span style="font-weight:700;font-size:.95rem">
+          <i class="fas fa-layer-group mr-2" style="color:#f59e0b"></i>
+          Exit Requests — Full Stage View
+          <span style="font-size:.75rem;color:#94a3b8;margin-left:8px">Click any row to expand full details &amp; audit log</span>
+        </span>
+        <small style="color:#94a3b8" id="sdTaskCount"></small>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="stage-table-wrap">
+        <table class="stage-table" id="stageTable">
+          <thead>
+            <tr class="hdr-main">
+              <th rowspan="3" style="min-width:55px">ID</th>
+              <th rowspan="3" style="min-width:140px">Employee</th>
+              <th rowspan="3" style="min-width:100px">Department</th>
+              <th rowspan="3" style="min-width:80px">Exit Date</th>
+              <th rowspan="3" style="min-width:80px">HOD</th>
+              <th rowspan="3" style="min-width:90px">Reporting DOER</th>
+              <th rowspan="3" style="min-width:70px">DOJ</th>
+              <th rowspan="3" style="min-width:70px">Status</th>
+              <th rowspan="3" style="min-width:80px">Current<br>Stage</th>
+              <th rowspan="3" style="min-width:110px">Plan End Time</th>
+              <th rowspan="3" style="min-width:80px">Created<br>By</th>
+              <th colspan="2" class="th-p1">P1 — Initiation</th>
+              <th colspan="3" class="th-p2">P2 — HOD Decision</th>
+              <th colspan="2" class="th-p3">P3 — Update Details</th>
+              <th colspan="3" class="th-p4">P4 — System Mail (HOD)</th>
+              <th colspan="2" class="th-p5">P5 — Exit Interview</th>
+              <th colspan="2" class="th-p6">P6 — Handover</th>
+              <th colspan="2" class="th-p7">P7 — Letters</th>
+              <th colspan="2" class="th-p8">P8 — Complete Exit</th>
+              <th colspan="2" class="th-p9">P9 — Rejected</th>
+            </tr>
+            <tr class="hdr-stage">
+              <th colspan="2" class="th-p1">Anytime</th>
+              <th colspan="3" class="th-p2">2 Days</th>
+              <th colspan="2" class="th-p3">2 Hours</th>
+              <th colspan="3" class="th-p4">Exit Date 11 AM</th>
+              <th colspan="2" class="th-p5">Exit Date 2 PM</th>
+              <th colspan="2" class="th-p6">Exit Date 4 PM</th>
+              <th colspan="2" class="th-p7">Exit Date 5 PM</th>
+              <th colspan="2" class="th-p8">2 Hours</th>
+              <th colspan="3" class="th-p9">7 Days Before Exit</th>
+            </tr>
+            <tr class="hdr-sub">
+              <th class="th-sub-p1">Done At</th><th class="th-sub-p1">Attach</th>
+              <th class="th-sub-p2">Decision</th><th class="th-sub-p2">Done At</th><th class="th-sub-p2">Attach</th>
+              <th class="th-sub-p3">Done At</th><th class="th-sub-p3">Attach</th>
+              <th class="th-sub-p4">Status</th><th class="th-sub-p4">Done At</th><th class="th-sub-p4">Attach</th>
+              <th class="th-sub-p5">Done At</th><th class="th-sub-p5">Attach</th>
+              <th class="th-sub-p6">Done At</th><th class="th-sub-p6">Attach</th>
+              <th class="th-sub-p7">Done At</th><th class="th-sub-p7">Attach</th>
+              <th class="th-sub-p8">Done At</th><th class="th-sub-p8">Attach</th>
+              <th class="th-sub-p9">Status</th><th class="th-sub-p9">Done At</th><th class="th-sub-p9">Assign Person</th>
+            </tr>
+          </thead>
+
+          <tbody>
+          {% if tasks %}
+            {% for t in tasks %}
+            {% set stage = t.workflow_stage or '' %}
+            {% if t.status == 'CLOSED' %}{% set row_cls = 'row-closed' %}
+            {% elif t.status in ['REJECTED','CANCELLED'] %}{% set row_cls = 'row-rejected' %}
+            {% elif t.deadline_at and t.deadline_at < now %}{% set row_cls = 'row-overdue' %}
+            {% else %}{% set row_cls = 'row-open' %}{% endif %}
+
+            <!-- DATA ROW: passes itself (this) to toggleDrawer -->
+            <tr class="data-row {{ row_cls }}"
+                data-id="{{ t.id }}"
+                data-emp="{{ ((t.employee_name or '') ~ ' ' ~ (t.employee_code or ''))|lower|e }}"
+                data-dept="{{ (t.department or '')|lower|e }}"
+                data-stage="{{ stage }}"
+                data-status="{{ t.status }}"
+                data-drawer="drawer-{{ t.id }}"
+                style="cursor:pointer"
+                onclick="toggleDrawer(this)">
+
+              <td class="info-cell text-center">
+                <strong style="font-size:.82rem">#{{ t.id }}</strong>
+                <div style="margin-top:3px">
+                  {% if t.status == 'CLOSED' %}<span class="badge-closed">Closed</span>
+                  {% elif t.status in ['REJECTED','CANCELLED'] %}<span class="badge-rejected">Rejected</span>
+                  {% elif t.deadline_at and t.deadline_at < now %}<span class="badge-overdue"><i class="fas fa-exclamation-triangle mr-1"></i>Overdue</span>
+                  {% else %}<span class="badge-open">Open</span>{% endif %}
+                </div>
+              </td>
+              <td class="info-cell">
+                <div style="font-weight:700;font-size:.8rem">{{ t.employee_name or '—' }}</div>
+                <div style="font-size:.68rem;color:#64748b">{{ t.employee_code }}</div>
+              </td>
+              <td class="info-cell" style="font-size:.76rem">{{ t.department or '—' }}</td>
+              <td class="info-cell text-center">
+                {% if t.date_of_exit %}
+                  <span style="font-weight:700;color:#dc2626;font-size:.76rem">
+                    {{ t.date_of_exit.strftime('%d/%m/%y') if t.date_of_exit is not string else t.date_of_exit[:10] }}
+                  </span>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td class="info-cell" style="font-size:.74rem">
+                {{ t.hod or '—' }}
+                {% if t.hod_id %}<div style="font-size:.67rem;color:#94a3b8">{{ t.hod_id }}</div>{% endif %}
+              </td>
+              <td class="info-cell" style="font-size:.74rem">
+                {{ t.reporting_doer or '—' }}
+                {% if t.reporting_doer_id %}<div style="font-size:.67rem;color:#94a3b8">{{ t.reporting_doer_id }}</div>{% endif %}
+              </td>
+              <td class="info-cell td-date">
+                {% if t.doj %}{{ t.doj.strftime('%d/%m/%y') if t.doj is not string else t.doj[:10] }}{% else %}—{% endif %}
+              </td>
+              <td class="info-cell text-center" style="font-size:.72rem;color:#475569">{{ t.status or '—' }}</td>
+              <td class="info-cell text-center">
+                {% if t.deadline_at %}
+                  {% if t.deadline_at < now and t.status == 'OPEN' %}
+                    <span style="color:#dc2626;font-weight:700;font-size:.72rem"><i class="fas fa-exclamation-circle mr-1"></i>{{ t.deadline_at.strftime('%d-%m-%y %H:%M') if t.deadline_at is not string else t.deadline_at[:16] }}</span>
+                    <div style="font-size:.63rem;color:#dc2626">OVERDUE</div>
+                  {% else %}
+                    <span style="color:#0369a1;font-weight:600;font-size:.72rem"><i class="fas fa-clock mr-1"></i>{{ t.deadline_at.strftime('%d-%m-%y %H:%M') if t.deadline_at is not string else t.deadline_at[:16] }}</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted" style="font-size:.72rem">—</span>
+                {% endif %}
+              </td>
+              <td class="info-cell text-center">
+                {% if stage == 'P1' %}<span class="stage-lozenge" style="background:#dbeafe;color:#1e40af">P1</span>
+                {% elif stage == 'P2' %}<span class="stage-lozenge" style="background:#fef9c3;color:#854d0e">P2</span>
+                {% elif stage == 'P3' %}<span class="stage-lozenge" style="background:#e0f2fe;color:#0369a1">P3</span>
+                {% elif stage == 'P4' %}<span class="stage-lozenge" style="background:#ede9fe;color:#6d28d9">P4</span>
+                {% elif stage == 'P5' %}<span class="stage-lozenge" style="background:#dbeafe;color:#1e40af">P5</span>
+                {% elif stage == 'P6' %}<span class="stage-lozenge" style="background:#e0f2fe;color:#0369a1">P6</span>
+                {% elif stage == 'P7' %}<span class="stage-lozenge" style="background:#d1fae5;color:#065f46">P7</span>
+                {% elif stage == 'P8' %}<span class="stage-lozenge" style="background:#dcfce7;color:#166534">P8</span>
+                {% elif stage == 'P9' %}<span class="stage-lozenge" style="background:#fecaca;color:#7f1d1d">P9</span>
+                {% else %}<span class="stage-lozenge" style="background:#f1f5f9;color:#64748b">{{ stage or '—' }}</span>{% endif %}
+              </td>
+              <td class="info-cell text-center" style="font-size:.72rem">
+                {{ t.created_by or '—' }}<br>
+                {% if t.created_at %}<span style="color:#94a3b8;font-size:.67rem">{{ t.created_at.strftime('%d/%m/%y') if t.created_at is not string else t.created_at[:10] }}</span>{% endif %}
+              </td>
+
+              {# P1 #}
+              <td class="td-date {% if t.p1_done_at %}td-done{% else %}td-plain{% endif %}">
+                {% if t.p1_done_at %}{{ t.p1_done_at.strftime('%d-%m-%Y %H:%M') if t.p1_done_at is not string else t.p1_done_at[:16] }}
+                {% if t.p1_done_by %}<div style="font-size:.63rem;color:#64748b">{{ t.p1_done_by }}</div>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="td-attach" onclick="event.stopPropagation()">
+                {% if t.p1_attachment %}{% set ext = t.p1_attachment.rsplit('.',1)[-1].lower() %}
+                {% if ext == 'pdf' %}<a href="/static/{{ t.p1_attachment }}" target="_blank" style="color:#dc2626"><i class="fas fa-file-pdf"></i></a>
+                {% else %}<a href="/static/{{ t.p1_attachment }}" download style="color:#0284c7"><i class="fas fa-paperclip"></i></a>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+
+              {# P2 #}
+              <td class="text-center" style="font-size:.72rem">
+                {% if t.p2_decision == 'YES' %}<span style="color:#16a34a;font-weight:700"><i class="fas fa-check mr-1"></i>Yes</span>
+                {% elif t.p2_decision == 'NO' %}<span style="color:#dc2626;font-weight:700"><i class="fas fa-times mr-1"></i>No</span>
+                {% else %}—{% endif %}
+              </td>
+              <td class="td-date {% if t.p2_done_at %}td-done{% else %}td-plain{% endif %}">
+                {% if t.p2_done_at %}{{ t.p2_done_at.strftime('%d-%m-%Y %H:%M') if t.p2_done_at is not string else t.p2_done_at[:16] }}
+                {% if t.p2_done_by %}<div style="font-size:.63rem;color:#64748b">{{ t.p2_done_by }}</div>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="td-attach" onclick="event.stopPropagation()">
+                {% if t.p2_attachment %}{% set ext = t.p2_attachment.rsplit('.',1)[-1].lower() %}
+                {% if ext == 'pdf' %}<a href="/static/{{ t.p2_attachment }}" target="_blank" style="color:#dc2626"><i class="fas fa-file-pdf"></i></a>
+                {% else %}<a href="/static/{{ t.p2_attachment }}" download style="color:#0284c7"><i class="fas fa-paperclip"></i></a>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+
+              {# P3 #}
+              <td class="td-date {% if t.p3_done_at %}td-done{% else %}td-plain{% endif %}">
+                {% if t.p3_done_at %}{{ t.p3_done_at.strftime('%d-%m-%Y %H:%M') if t.p3_done_at is not string else t.p3_done_at[:16] }}
+                {% if t.p3_done_by %}<div style="font-size:.63rem;color:#64748b">{{ t.p3_done_by }}</div>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="td-attach" onclick="event.stopPropagation()">
+                {% if t.p3_attachment %}{% set ext = t.p3_attachment.rsplit('.',1)[-1].lower() %}
+                {% if ext == 'pdf' %}<a href="/static/{{ t.p3_attachment }}" target="_blank" style="color:#dc2626"><i class="fas fa-file-pdf"></i></a>
+                {% else %}<a href="/static/{{ t.p3_attachment }}" download style="color:#0284c7"><i class="fas fa-paperclip"></i></a>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+
+              {# P4 #}
+              <td class="text-center" style="font-size:.7rem">
+                {% if t.p4_status == 'DONE' %}<span style="color:#16a34a;font-weight:700">✓ Done</span>
+                {% elif stage in ['P4','P5','P6','P7','P8'] or t.status=='CLOSED' %}
+                  <span class="{% if t.p4_status=='DONE' %}td-done{% else %}td-pending{% endif %}">{{ t.p4_status or 'PENDING' }}</span>
+                {% else %}<span style="color:#94a3b8">—</span>{% endif %}
+              </td>
+              <td class="td-date {% if t.p4_done_at %}td-done{% else %}td-plain{% endif %}">
+                {% if t.p4_done_at %}{{ t.p4_done_at.strftime('%d-%m-%Y %H:%M') if t.p4_done_at is not string else t.p4_done_at[:16] }}
+                {% if t.p4_done_by %}<div style="font-size:.63rem;color:#64748b">{{ t.p4_done_by }}</div>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="td-attach" onclick="event.stopPropagation()">
+                {% if t.p4_attachment %}{% set ext = t.p4_attachment.rsplit('.',1)[-1].lower() %}
+                {% if ext == 'pdf' %}<a href="/static/{{ t.p4_attachment }}" target="_blank" style="color:#dc2626"><i class="fas fa-file-pdf"></i></a>
+                {% else %}<a href="/static/{{ t.p4_attachment }}" download style="color:#0284c7"><i class="fas fa-paperclip"></i></a>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+
+              {# P5 #}
+              <td class="td-date {% if t.p5_done_at %}td-done{% else %}td-plain{% endif %}">
+                {% if t.p5_done_at %}{{ t.p5_done_at.strftime('%d-%m-%Y %H:%M') if t.p5_done_at is not string else t.p5_done_at[:16] }}
+                {% if t.p5_done_by %}<div style="font-size:.63rem;color:#64748b">{{ t.p5_done_by }}</div>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="td-attach" onclick="event.stopPropagation()">
+                {% if t.p5_attachment %}{% set ext = t.p5_attachment.rsplit('.',1)[-1].lower() %}
+                {% if ext == 'pdf' %}<a href="/static/{{ t.p5_attachment }}" target="_blank" style="color:#dc2626"><i class="fas fa-file-pdf"></i></a>
+                {% else %}<a href="/static/{{ t.p5_attachment }}" download style="color:#0284c7"><i class="fas fa-paperclip"></i></a>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+
+              {# P6 #}
+              <td class="td-date {% if t.p6_done_at %}td-done{% else %}td-plain{% endif %}">
+                {% if t.p6_done_at %}{{ t.p6_done_at.strftime('%d-%m-%Y %H:%M') if t.p6_done_at is not string else t.p6_done_at[:16] }}
+                {% if t.p6_done_by %}<div style="font-size:.63rem;color:#64748b">{{ t.p6_done_by }}</div>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="td-attach" onclick="event.stopPropagation()">
+                {% if t.p6_attachment %}{% set ext = t.p6_attachment.rsplit('.',1)[-1].lower() %}
+                {% if ext == 'pdf' %}<a href="/static/{{ t.p6_attachment }}" target="_blank" style="color:#dc2626"><i class="fas fa-file-pdf"></i></a>
+                {% else %}<a href="/static/{{ t.p6_attachment }}" download style="color:#0284c7"><i class="fas fa-paperclip"></i></a>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+
+              {# P7 #}
+              <td class="td-date {% if t.p7_done_at %}td-done{% else %}td-plain{% endif %}">
+                {% if t.p7_done_at %}{{ t.p7_done_at.strftime('%d-%m-%Y %H:%M') if t.p7_done_at is not string else t.p7_done_at[:16] }}
+                {% if t.p7_done_by %}<div style="font-size:.63rem;color:#64748b">{{ t.p7_done_by }}</div>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="td-attach" onclick="event.stopPropagation()">
+                {% if t.p7_attachment %}{% set ext = t.p7_attachment.rsplit('.',1)[-1].lower() %}
+                {% if ext == 'pdf' %}<a href="/static/{{ t.p7_attachment }}" target="_blank" style="color:#dc2626"><i class="fas fa-file-pdf"></i></a>
+                {% else %}<a href="/static/{{ t.p7_attachment }}" download style="color:#0284c7"><i class="fas fa-paperclip"></i></a>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+
+              {# P8 #}
+              <td class="td-date {% if t.p8_done_at %}td-done{% else %}td-plain{% endif %}">
+                {% if t.p8_done_at %}{{ t.p8_done_at.strftime('%d-%m-%Y %H:%M') if t.p8_done_at is not string else t.p8_done_at[:16] }}
+                {% if t.p8_done_by %}<div style="font-size:.63rem;color:#64748b">{{ t.p8_done_by }}</div>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="td-attach" onclick="event.stopPropagation()">
+                {% if t.p8_attachment %}{% set ext = t.p8_attachment.rsplit('.',1)[-1].lower() %}
+                {% if ext == 'pdf' %}<a href="/static/{{ t.p8_attachment }}" target="_blank" style="color:#dc2626"><i class="fas fa-file-pdf"></i></a>
+                {% else %}<a href="/static/{{ t.p8_attachment }}" download style="color:#0284c7"><i class="fas fa-paperclip"></i></a>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+
+              {# P9 — Rejection #}
+              <td class="text-center" style="font-size:.7rem">
+                {% if t.status == 'REJECTED' or t.status == 'CANCELLED' %}<span style="color:#dc2626;font-weight:700">Rejected</span>
+                {% else %}<span style="color:#94a3b8">—</span>{% endif %}
+              </td>
+              <td class="td-date {% if t.p9_done_at %}td-done{% else %}td-plain{% endif %}">
+                {% if t.p9_done_at %}{{ t.p9_done_at.strftime('%d-%m-%Y %H:%M') if t.p9_done_at is not string else t.p9_done_at[:16] }}
+                {% if t.p9_done_by %}<div style="font-size:.63rem;color:#64748b">{{ t.p9_done_by }}</div>{% endif %}
+              {% else %}—{% endif %}
+              </td>
+              <td class="td-remarks" title="{{ t.p9_new_assigned_person or '' }}">{{ (t.p9_new_assigned_person or '—')[:30] }}</td>
+
+            </tr>
+
+            <!-- DETAIL DRAWER ROW
+                 CRITICAL: style="display:none" is set INLINE here, not via CSS class.
+                 This allows JS to reliably read and toggle drawer.style.display. -->
+            <tr class="detail-drawer" id="drawer-{{ t.id }}" style="display:none">
+              <td colspan="32">
+
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                  <i class="fas fa-info-circle" style="color:#0ea5e9;font-size:1rem"></i>
+                  <strong style="font-size:.9rem;color:#0f172a">Full Detail — Request #{{ t.id }} ({{ t.employee_name }})</strong>
+                  <button onclick="event.stopPropagation();closeDrawer('drawer-{{ t.id }}')"
+                    class="btn btn-sm ml-auto"
+                    style="background:#e0f2fe;color:#0369a1;border:none;font-size:.75rem;padding:2px 10px">
+                    <i class="fas fa-times mr-1"></i>Close
+                  </button>
+                </div>
+
+                <div class="detail-grid">
+                  <div class="dg-item"><div class="dg-lbl">Employee Code</div><div class="dg-val"><code>{{ t.employee_code }}</code></div></div>
+                  <div class="dg-item"><div class="dg-lbl">Employee Name</div><div class="dg-val">{{ t.employee_name or '—' }}</div></div>
+                  <div class="dg-item"><div class="dg-lbl">Department</div><div class="dg-val">{{ t.department or '—' }}</div></div>
+                  <div class="dg-item"><div class="dg-lbl">HOD</div><div class="dg-val">{{ t.hod or '—' }} {% if t.hod_id %}<small style="color:#94a3b8">({{ t.hod_id }})</small>{% endif %}</div></div>
+                  <div class="dg-item"><div class="dg-lbl">Reporting DOER</div><div class="dg-val">{{ t.reporting_doer or '—' }} {% if t.reporting_doer_id %}<small style="color:#94a3b8">({{ t.reporting_doer_id }})</small>{% endif %}</div></div>
+                  <div class="dg-item"><div class="dg-lbl">Date of Joining</div><div class="dg-val">{{ t.doj or '—' }}</div></div>
+                  <div class="dg-item">
+                    <div class="dg-lbl">Date of Exit</div>
+                    <div class="dg-val" style="color:#dc2626;font-weight:700">
+                      {% if t.date_of_exit %}{{ t.date_of_exit.strftime('%d/%m/%Y') if t.date_of_exit is not string else t.date_of_exit }}{% else %}—{% endif %}
+                    </div>
+                  </div>
+                  <div class="dg-item"><div class="dg-lbl">Created By</div><div class="dg-val"><code>{{ t.created_by or '—' }}</code></div></div>
+                  <div class="dg-item">
+                    <div class="dg-lbl">Created At</div>
+                    <div class="dg-val">{% if t.created_at %}{{ t.created_at.strftime('%d-%m-%Y %H:%M') if t.created_at is not string else t.created_at[:16] }}{% else %}—{% endif %}</div>
+                  </div>
+                  <div class="dg-item"><div class="dg-lbl">Current Stage</div><div class="dg-val"><strong>{{ t.workflow_stage or '—' }}</strong></div></div>
+                  <div class="dg-item"><div class="dg-lbl">Status</div><div class="dg-val">{{ t.status or '—' }}</div></div>
+                  <div class="dg-item">
+                    <div class="dg-lbl">Stage Started At</div>
+                    <div class="dg-val">{% if t.stage_started_at %}{{ t.stage_started_at.strftime('%d-%m-%Y %H:%M') if t.stage_started_at is not string else t.stage_started_at[:16] }}{% else %}—{% endif %}</div>
+                  </div>
+                  <div class="dg-item">
+                    <div class="dg-lbl">Plan End Time</div>
+                    <div class="dg-val" style="{% if t.deadline_at and t.deadline_at < now %}color:#dc2626;font-weight:700{% endif %}">
+                      {% if t.deadline_at %}
+                        {{ t.deadline_at.strftime('%d-%m-%Y %H:%M') if t.deadline_at is not string else t.deadline_at[:16] }}
+                        {% if t.deadline_at < now %} <span style="color:#dc2626">(OVERDUE)</span>{% endif %}
+                      {% else %}—{% endif %}
+                    </div>
+                  </div>
+                  <div class="dg-item">
+                    <div class="dg-lbl">P4 Deadline</div>
+                    <div class="dg-val">{% if t.deadline_at and t.workflow_stage == 'P4' %}{{ t.deadline_at.strftime('%d/%m/%Y') if t.deadline_at is not string else t.deadline_at[:10] }}{% else %}—{% endif %}</div>
+                  </div>
+                  <div class="dg-item"><div class="dg-lbl">P4 Assigned Person</div><div class="dg-val">{{ t.p9_new_assigned_person or '—' }}</div></div>
+                  <div class="dg-item">
+                    <div class="dg-lbl">P2 Decision</div>
+                    <div class="dg-val">
+                      {% if t.p2_decision == 'YES' %}<span style="color:#16a34a;font-weight:700">YES — Accepted</span>
+                      {% elif t.p2_decision == 'NO' %}<span style="color:#dc2626;font-weight:700">NO — Rejected (P9)</span>
+                      {% else %}Pending{% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Remarks per stage -->
+                <div style="margin-bottom:12px">
+                  <div style="font-size:.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">
+                    <i class="fas fa-comment-dots mr-1"></i>Remarks per Stage
+                  </div>
+                  <div class="remarks-grid">
+                    {% for px, rem in [('P1',t.p1_remarks),('P2',t.p2_remarks),('P3',t.p3_remarks),
+                                        ('P4',t.p4_remarks),('P5',t.p5_remarks),('P6',t.p6_remarks),
+                                        ('P7',t.p7_remarks),('P8',t.p8_remarks),('P9',t.p9_remarks)] %}
+                    <div class="remark-card">
+                      <div class="rk-lbl">{{ px }}</div>
+                      <div style="color:#1e293b;line-height:1.4">{{ rem or '—' }}</div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+
+                <!-- Audit log -->
+                {% if t.audit_log %}
+                <div class="audit-mini">
+                  <table>
+                    <thead><tr><th>#</th><th>Stage</th><th>Action</th><th>Done By</th><th>Remarks</th><th>At</th></tr></thead>
+                    <tbody>
+                      {% for log in t.audit_log %}
+                      <tr>
+                        <td>{{ loop.index }}</td>
+                        <td><strong>{{ log.stage }}</strong></td>
+                        <td>{{ log.action or '—' }}</td>
+                        <td><code style="font-size:.68rem">{{ log.done_by or '—' }}</code></td>
+                        <td>{{ (log.remarks or '—')[:60] }}</td>
+                        <td style="white-space:nowrap">
+                          {% if log.done_at %}{{ log.done_at.strftime('%d-%m-%Y %H:%M') if log.done_at is not string else log.done_at[:16] }}{% else %}—{% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                {% else %}
+                <div style="font-size:.76rem;color:#94a3b8;font-style:italic">
+                  <i class="fas fa-history mr-1"></i>No audit log entries for this request.
+                </div>
+                {% endif %}
+
+              </td>
+            </tr>
+
+            {% endfor %}
+          {% else %}
+          <tr>
+            <td colspan="32" style="text-align:center;padding:40px;color:#94a3b8">
+              <i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:8px"></i>
+              No exit requests found.
+            </td>
+          </tr>
+          {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-content -->
+{% endif %}
+
+<!-- ══════════ SCRIPTS ══════════ -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<script>
+/* ── Filters ── */
+function sdApplyFilters() {
+  var idVal     = (document.getElementById("sdFilterId").value     || "").trim().toLowerCase();
+  var empVal    = (document.getElementById("sdFilterEmp").value    || "").trim().toLowerCase();
+  var deptVal   = (document.getElementById("sdFilterDept").value   || "").trim().toLowerCase();
+  var stepVal   = document.getElementById("sdFilterStep").value;
+  var statusVal = document.getElementById("sdFilterStatus").value;
+
+  var rows = document.querySelectorAll("#stageTable tbody tr.data-row");
+  var visible = 0;
+
+  rows.forEach(function(row) {
+    var show = true;
+    if (idVal     && (row.dataset.id     || "").toLowerCase().indexOf(idVal)   === -1) show = false;
+    if (empVal    && (row.dataset.emp    || "").toLowerCase().indexOf(empVal)  === -1) show = false;
+    if (deptVal   && (row.dataset.dept   || "").toLowerCase().indexOf(deptVal) === -1) show = false;
+    if (stepVal   && (row.dataset.stage  || "") !== stepVal)                           show = false;
+    if (statusVal && (row.dataset.status || "") !== statusVal)                         show = false;
+
+    row.style.display = show ? "" : "none";
+
+    // Always close the drawer when filtering
+    var drawerId = row.dataset.drawer;
+    if (drawerId) {
+      var drawer = document.getElementById(drawerId);
+      if (drawer) drawer.style.display = "none";
+    }
+
+    if (show) visible++;
+  });
+
+  var total = rows.length;
+  document.getElementById("sdTaskCount").textContent =
+    visible === total
+      ? (total + " request" + (total !== 1 ? "s" : ""))
+      : (visible + " of " + total + " requests");
+}
+
+function sdClearFilters() {
+  ["sdFilterId","sdFilterEmp","sdFilterDept"].forEach(function(id){ document.getElementById(id).value = ""; });
+  document.getElementById("sdFilterStep").value   = "";
+  document.getElementById("sdFilterStatus").value = "";
+  sdApplyFilters();
+}
+
+$(document).ready(function(){ sdApplyFilters(); });
+
+/* ────────────────────────────────────────────────
+   toggleDrawer — THE FIX
+   ─ Called with the <tr> element itself (onclick="toggleDrawer(this)")
+   ─ Reads drawer ID from data-drawer attribute (no regex needed)
+   ─ Checks drawer.style.display directly — works because the drawer
+     rows are hidden via inline style="display:none", NOT a CSS class
+   ─ Closes all other drawers before opening the clicked one
+──────────────────────────────────────────────── */
+function toggleDrawer(row) {
+  var drawerId = row.dataset.drawer;
+  if (!drawerId) return;
+  var drawer = document.getElementById(drawerId);
+  if (!drawer) return;
+
+  // Since we set inline style on all drawers, this check is reliable
+  var isOpen = (drawer.style.display !== "none" && drawer.style.display !== "");
+
+  // Close every drawer
+  document.querySelectorAll(".detail-drawer").forEach(function(d) {
+    d.style.display = "none";
+  });
+
+  // If it was closed, open it
+  if (!isOpen) {
+    drawer.style.display = "table-row";
+    setTimeout(function() {
+      drawer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 30);
+  }
+}
+
+function closeDrawer(drawerId) {
+  var el = document.getElementById(drawerId);
+  if (el) el.style.display = "none";
+}
+
+/* ── Debug bar ── */
+function toggleDebugBar() {
+  var bar = document.getElementById("debugBar");
+  bar.style.display = bar.style.display === "none" ? "flex" : "none";
+}
+
+/* ══ FLOWCHART ══ */
+function downloadFlowchart() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth();
+  const margin = 40;
+  let y = 40;
+  doc.setFillColor(15,23,42); doc.rect(0,0,W,70,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('HR Exit Process — Workflow Flowchart', margin, 32);
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('Alcove Realty  ·  Generated: ' + new Date().toLocaleString(), margin, 50);
+  doc.setTextColor(14,165,233);
+  doc.text('ANNEXURE 1', W-margin-60, 32);
+  y = 90; doc.setTextColor(30,41,59);
+  const steps = [
+    { id:'START', label:'START', color:[220,252,231], text:[22,101,52], shape:'oval' },
+    { id:'P1', label:'P1 — Receive Resignation', sub:'Who: HR Executive / HR HOD  |  When: Anytime  |  How: Mail & Exit Form', color:[219,234,254], text:[30,64,175] },
+    { id:'P2', label:'P2 — Confirm Resignation Accepted by HOD?', sub:'When: Within 2 Days  |  YES → P3  |  NO → P9 (Reject)', color:[254,249,195], text:[133,77,14], shape:'diamond' },
+    { id:'P9', label:'P9 — Reject Resignation → STOP', sub:'Who: HR Executive / HR HOD  |  When: Within 2 Hours  |  How: Mail', color:[254,226,226], text:[153,27,27] },
+    { id:'P3', label:'P3 — Update Exit Details', sub:'When: Within 2 Hours  |  ERP, G Sheet, Intrasite V2 & Org Chart  |  Checklist: 3 items', color:[219,234,254], text:[30,64,175] },
+    { id:'P4', label:'P4 — Dept HOD: Mail System Team for Task Transfer', sub:'Who: Dept HOD  |  When: 7 Days Before Exit Date  |  How: Email with new assigned person name', color:[243,232,255], text:[107,33,168] },
+    { id:'P5', label:'P5 — Share Exit Interview Link', sub:'Who: HR Exec / HR HOD  |  When: Exit Date 11 AM  |  How: Email', color:[219,234,254], text:[30,64,175] },
+    { id:'P6', label:'P6 — Handover Doc + Asset / Clearance', sub:'Who: HR Exec / HR HOD  |  When: Exit Date 2 PM  |  How: Email, Hard Copy', color:[219,234,254], text:[30,64,175] },
+    { id:'P7', label:'P7 — Issue Release + Experience Letter', sub:'Who: HR Exec / HR HOD  |  When: Exit Date 4 PM  |  How: Email, Hard Copy', color:[219,234,254], text:[30,64,175] },
+    { id:'P8', label:'P8 — Mark Employee Inactive (FINAL)', sub:'When: Exit Date 5 PM  |  HR Master Data  |  Checklist: G-Sheet · ERP · Intrasite V2 & Org Chart', color:[220,252,231], text:[22,101,52] },
+    { id:'STOP', label:'STOP — Exit Process Closed', color:[220,252,231], text:[22,101,52], shape:'oval' },
+  ];
+  steps.forEach(function(s) {
+    const lines = s.sub ? s.sub.split('\n') : [];
+    const boxH = lines.length * 13 + 34;
+    if (y + boxH > doc.internal.pageSize.getHeight() - 40) { doc.addPage(); y = 40; }
+    const c = s.color, t = s.text;
+    doc.setFillColor(c[0],c[1],c[2]);
+    if (s.shape === 'oval') { doc.roundedRect(margin, y, W-margin*2, boxH, boxH/2, boxH/2, 'F'); }
+    else { doc.roundedRect(margin, y, W-margin*2, boxH, 6, 6, 'F'); }
+    doc.setTextColor(t[0],t[1],t[2]);
+    doc.setFontSize(9); doc.setFont('helvetica','bold');
+    doc.text(s.label, W/2, y+16, { align:'center' });
+    if (lines.length) {
+      doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+      lines.forEach(function(ln,i){ doc.text(ln, W/2, y+28+i*13, {align:'center'}); });
+    }
+    y += boxH + 10;
+    if (s.id !== 'STOP' && s.id !== 'P9') {
+      doc.setDrawColor(100,116,139); doc.line(W/2, y-6, W/2, y+4); y += 10;
+    }
+  });
+  const pc = doc.internal.getNumberOfPages();
+  for (let i=1;i<=pc;i++) {
+    doc.setPage(i); doc.setFontSize(7); doc.setTextColor(148,163,184);
+    doc.text('HR Exit Process Flowchart — Confidential — Alcove Realty', margin, doc.internal.pageSize.getHeight()-18);
+    doc.text('Page '+i+' of '+pc, W-margin, doc.internal.pageSize.getHeight()-18, {align:'right'});
+  }
+  doc.save('HR_Exit_Process_Flowchart_'+new Date().toISOString().slice(0,10)+'.pdf');
+}
+
+/* ── Export PDF ── */
+function exportStagePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a3" });
+  doc.setFontSize(13);
+  doc.text("HR Exit Process — All Stage Dashboard", 40, 36);
+  doc.setFontSize(8);
+  doc.text("Exported: " + new Date().toLocaleString() + "  |  Admin: {{ emp_code }}", 40, 50);
+  var head = ["ID","Employee","Dept","Exit Date","HOD","Status","Stage",
+              "P1 Done","P2 Decision","P2 Done","P3 Done",
+              "P4 Status","P4 Done","P5 Done","P6 Done",
+              "P7 Done","P8 Done","P9 Status","P9 Done","P9 Assigned"];
+  var rows = [];
+  document.querySelectorAll("#stageTable tbody tr.data-row").forEach(function(tr) {
+    if (tr.style.display === "none") return;
+    var cells = tr.querySelectorAll("td");
+    if (cells.length < 10) return;
+    var row = [];
+    cells.forEach(function(td, i) {
+      if (i < 32) row.push(td.innerText.trim().substring(0, 30).replace(/\n/g, " "));
+    });
+    rows.push(row.slice(0, 20));
+  });
+  doc.autoTable({
+    startY: 60, head: [head], body: rows,
+    styles: { fontSize: 6, cellPadding: 2.5, overflow: "linebreak" },
+    headStyles: { fillColor: [15,23,42], textColor: 255, fontStyle: "bold", fontSize: 6.5 },
+    alternateRowStyles: { fillColor: [240, 249, 255] },
+    margin: { left: 20, right: 20 },
+    columnStyles: { 0: { cellWidth: 25 }, 1: { cellWidth: 70 } }
+  });
+  doc.save("HR_Exit_All_Stages_" + new Date().toISOString().slice(0,10) + ".pdf");
+}
+</script>
+
+</body>
+</html>

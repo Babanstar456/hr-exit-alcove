@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Employee Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="{{ url_for('static', filename='images/Logo.png') }}" type="image/png">
+  <!-- Force same-tab for *all* links unless explicitly overridden -->
+  <base target="_self">
+
+  <!-- Bootstrap 4 + FontAwesome -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css"/>
+
+  <style>
+    :root{ --sidebar:#0f172a; --primary:#0ea5e9; --bg:#e3f1f5; }
+    *{box-sizing:border-box}
+    body{background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    .wrapper{display:flex;min-height:100vh}
+
+    /* Sidebar */
+    #sidebar{width:240px;background:var(--sidebar);color:#fff;position:fixed;top:0;left:0;height:100vh;display:flex;flex-direction:column}
+    .sidebar-header{padding:16px;border-bottom:1px solid rgba(255,255,255,.08);text-align:center}
+    .profile-image-wrapper{width:120px;height:120px;border-radius:50%;margin:0 auto;position:relative;overflow:hidden;border:3px solid rgba(255,255,255,.15)}
+    .profile-image{width:100%;height:100%;object-fit:cover}
+    .upload-btn{position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:0;border-radius:6px;padding:6px;cursor:pointer}
+    .profile-info{margin-top:10px}
+    .profile-info h6{margin:0;font-weight:600}
+    .profile-info small{opacity:.8}
+
+    .nav-section{padding:12px;overflow-y:auto}
+    .nav-header{font-size:11px;text-transform:uppercase;opacity:.6;margin:8px 4px}
+    .nav-link{color:rgba(255,255,255,.85);border-radius:8px;padding:.5rem .75rem;display:flex;align-items:center}
+    .nav-link i{width:18px;margin-right:8px}
+    .nav-link:hover{background:rgba(255,255,255,.1);text-decoration:none;color:#fff}
+    .submenu .nav-link{padding-left:2rem;font-size:.95rem}
+    .nav-link.active{background:rgba(255,255,255,.2);color:#fff !important;}
+
+    .sidebar-footer{margin-top:auto;padding:12px;border-top:1px solid rgba(255,255,255,.08)}
+    .sidebar-footer .btn{margin-bottom:8px}
+
+    /* Content */
+    #content{margin-left:240px;padding:20px;width:calc(100% - 240px)}
+    .topbar{background:#fff;border-radius:12px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+    .btn-toggle{background:var(--primary);color:#fff;border:0;border-radius:8px;padding:.45rem .75rem}
+
+    /* Mobile */
+    @media (max-width: 768px){
+      #sidebar{transform:translateX(-100%);transition:.25s}
+      #sidebar.active{transform:translateX(0)}
+      #content{margin:0;width:100%}
+      .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:998}
+      .overlay.active{display:block}
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="overlay"></div>
+
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="profile-image-wrapper">
+        <img src="{{ url_for('static', filename=photo) if photo else url_for('static', filename='images/placeholder-user.png') }}">
+
+        <form id="uploadForm" action="{{ url_for('upload_photo') }}" method="POST" enctype="multipart/form-data">
+          <input id="profileImageInput" name="photo" type="file" accept="image/*" hidden onchange="document.getElementById('uploadForm').submit()">
+          <button type="button" class="upload-btn" onclick="document.getElementById('profileImageInput').click()">
+            <i class="fas fa-camera"></i>
+          </button>
+        </form>
+      </div>
+      <div class="profile-info">
+        <h6>{{ person_Accountable }}</h6>
+        <small>Emp ID: {{ emp_code }}</small>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-header">Main Menu</div>
+      <ul class="list-unstyled">
+        <li>
+          <a class="nav-link {% if request.path == url_for('dashboard') %}active{% endif %}"
+             href="{{ url_for('dashboard') }}">
+            <i class="fas fa-home"></i> Home
+          </a>
+        </li>
+
+        {% for menu_name, submenus in fixed_menus.items() %}
+        <li class="mt-1">
+          <a class="nav-link" data-toggle="collapse" href="#m_{{ loop.index }}">
+            <i class="fas fa-folder"></i> {{ menu_name }}
+            <i class="fas fa-chevron-right ml-auto" style="font-size:.8rem;"></i>
+          </a>
+          <ul class="collapse list-unstyled submenu" id="m_{{ loop.index }}">
+            {% for submenu_name, submenu_link in submenus %}
+            <li>
+              <a class="nav-link {% if request.path == submenu_link %}active{% endif %}"
+                 href="{{ submenu_link }}">
+                <span>{{ submenu_name }}</span>
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        </li>
+        {% endfor %}
+      </ul>
+
+      <div class="nav-header">Account</div>
+      <div class="sidebar-footer">
+        <a href="{{ url_for('forgot_password') }}" class="btn btn-warning btn-block">
+          <i class="fas fa-key"></i> Forgot Password
+        </a>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger btn-block">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- CONTENT -->
+  <div id="content">
+    <div class="topbar">
+      <button id="sidebarToggle" class="btn-toggle d-md-none">
+        <i class="fas fa-bars"></i> Menu
+      </button>
+      <img src="https://www.alcoverealty.in/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Flogo1.9ec70d00.png&w=384&q=75"
+           alt="Company Logo" style="height:48px">
+    </div>
+
+    <div class="mt-3">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="mb-1">Welcome, {{ person_Accountable }}</h5>
+          <p class="mb-0 text-muted">Use the left menu to navigate to the HR Exit Process module.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Minimal JS -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Mobile sidebar toggle
+  $('#sidebarToggle').on('click', function(){
+    $('#sidebar').toggleClass('active');
+    $('.overlay').toggleClass('active');
+  });
+  $('.overlay').on('click', function(){
+    $('#sidebar').removeClass('active');
+    $(this).removeClass('active');
+  });
+
+  // Rotate chevron on collapse
+  $('[data-toggle="collapse"]').on('click', function(){
+    $(this).find('.fa-chevron-right').toggleClass('rot');
+  });
+
+  // ---- HARD-ENFORCE same-tab navigation for sidebar links ----
+  // Skip collapse toggles (href starts with "#")
+  document.querySelectorAll('#sidebar a.nav-link[href]').forEach(function(a){
+    const href = a.getAttribute('href') || '';
+    if (href.startsWith('#')) return; // it's a collapse control
+
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      // Normalize target just in case
+      a.setAttribute('target', '_self');
+      // Navigate in the SAME tab
+      window.location.assign(a.href);
+    });
+  });
+</script>
+</body>
+</html>
