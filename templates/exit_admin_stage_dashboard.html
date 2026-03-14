@@ -231,7 +231,7 @@ tbody tr.row-overdue  td:first-child{border-left:4px solid #dc2626}
 <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;flex-direction:column;gap:16px">
   <i class="fas fa-lock" style="font-size:3rem;color:#ef4444"></i>
   <div style="color:#f1f5f9;font-size:1.1rem;font-weight:700">Admin Access Only</div>
-  <a href="{{ url_for('exit_panel') }}" class="btn btn-outline-light btn-sm">← Back to Exit Panel</a>
+  <a href="{{ url_for('fms_hr_exit_exit_panel') }}" class="btn btn-outline-light btn-sm">← Back to Exit Panel</a>
 </div>
 {% else %}
 
@@ -243,18 +243,20 @@ tbody tr.row-overdue  td:first-child{border-left:4px solid #dc2626}
   </div>
   <div class="nav-center">
     <a href="{{ url_for('dashboard') }}" class="nav-pill"><i class="fas fa-th-large"></i> Dashboard</a>
-    <a href="{{ url_for('exit_admin_stage_dashboard') }}" class="nav-pill active"
+    <a href="{{ url_for('fms_hr_exit_exit_admin_stage_dashboard') }}" class="nav-pill active"
        style="background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.4)">
       <i class="fas fa-layer-group"></i> All Stage Dashboard
     </a>
   </div>
   <div class="nav-right">
-    <a href="{{ url_for('exit_panel') }}" class="btn-back-dash"><i class="fas fa-arrow-left"></i> Back to Panel</a>
+    <a href="{{ url_for('fms_hr_exit_exit_panel') }}" class="btn-back-dash"><i class="fas fa-arrow-left"></i> Back to Panel</a>
     <div class="profile-chip" title="{{ person_Accountable }}">
       <img src="{{ url_for('static', filename=photo) if photo else '' }}" alt="Profile"
            onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2216%22 fill=%22%23334155%22/%3E%3Ccircle cx=%2216%22 cy=%2213%22 r=%225%22 fill=%22%2394a3b8%22/%3E%3Cellipse cx=%2216%22 cy=%2226%22 rx=%228%22 ry=%225%22 fill=%22%2394a3b8%22/%3E%3C/svg%3E'">
       <div class="chip-info">
-        <div class="chip-name">{{ person_Accountable }}</div>
+        <div class="chip-name">{{ person_Accoue the problem with black lines across the terminal screen:
+https://learn.microsoft.com/windows/terminal/troubleshooting#black-lines-in-powershell-51-6x-70
+Install the latest version bntable }}</div>
         <div class="chip-id">{{ emp_code }} &nbsp;·&nbsp; <span style="color:#f59e0b">Admin</span></div>
       </div>
     </div>

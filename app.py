@@ -34,62 +34,67 @@ app.config['PROFILE_PHOTO_FOLDER'] = 'static/uploads/profile_photos'
 
 mysql = MySQL(app)
 
-_COLLATION_SQL = (
+fms_hr_exit__COLLATION_SQL = (
     "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci; "
     "SET collation_connection = utf8mb4_unicode_ci; "
     "SET collation_database   = utf8mb4_unicode_ci"
 )
 
+def get_default_photo(photo_link):
+    return photo_link if photo_link else "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSosHI4JH3vNxpQnFvuWx7OJY84XotRh9_h-g&s"
+
+def allowed_file(filename):
+    return (
+        '.' in filename and
+        filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'webp'}
+    )
+
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        emp_code = request.form['emp_code'].strip()
+        emp_code = request.form['emp_code']
         password = request.form['password']
 
-        # Determine if they might be a dept HOD (not in HR whitelist)
-        in_hr_whitelist = emp_code in EXIT_ALL_ACCESS
-
-        # Fetch user from DB
         cur = mysql.connection.cursor()
-        cur.execute("""
-            SELECT Emp_Code, password, Designation, Department,
-                   Admin, Photo_Link, Email_ID_Official, Contact_number,
-                   user_Access, Person_Accountable, Reporting_DOER
-            FROM alcovedb_2024.Employee_Master
-            WHERE Emp_Code=%s AND STATUS='ACTIVE'
-        """, (emp_code,))
+        cur.execute(
+            "SELECT Emp_Code, password, Designation, Department, Admin, Photo_Link, Email_ID_Official, Contact_number, user_Access, Person_Accountable,Reporting_DOER FROM Employee_Master WHERE Emp_Code=%s and STATUS='ACTIVE'",
+            (emp_code,))
         user = cur.fetchone()
         cur.close()
 
-        if not user or user[1] != password:
+        if user and user[1] == password:
+            # ── Assign role based on defined permission variables ──────────────
+            # Priority: admin > primary > secondary > dept_hod > employee (read-only)
+            dept_hod_ids  = fms_hr_exit__get_all_dept_hod_ids()
+            is_a_dept_hod = emp_code in dept_hod_ids
+
+            session['emp_code'] = user[0]
+            session['designation'] = user[2]
+            session['department'] = user[3]
+            session['admin'] = user[4]
+            session['photo'] = fms_hr_exit_get_default_photo(user[5])
+            session['email'] = user[6]
+            session['contact'] = user[7]
+            session['user_Access'] = user[8]
+            session['person_Accountable'] = user[9]
+            session['Reporting_DOER'] = user[10]
+            session['role'] = (
+                'admin'      if emp_code in fms_hr_exit_ADMIN_IDS
+                else 'primary'   if emp_code in fms_hr_exit_PRIMARY_DOER_IDS
+                else 'secondary' if emp_code in fms_hr_exit_SECONDARY_DOER_IDS
+                else 'dept_hod'  if is_a_dept_hod
+                else 'employee'   # authenticated but no special exit-process rights
+            )
+            print("Debug in if  ")
+            # Route by role after login
+            if session['role'] in ('admin', 'primary', 'secondary', 'dept_hod'):
+                return redirect(url_for('fms_hr_exit_exit_panel'))
+            else:
+                return redirect(url_for('dashboard') + '?no_tasks=1')
+        else:
             flash('Invalid Credentials', 'danger')
+            print("Debug in else  ")
             return render_template('login.html')
-
-        # Check if dept HOD (appears as HOD_ID in Employee_Master)
-        dept_hod_ids = fms_hr_exit__get_all_dept_hod_ids()
-        is_a_dept_hod = emp_code in dept_hod_ids
-
-        if not in_hr_whitelist and not is_a_dept_hod:
-            flash('Access denied. You are not authorised for this system.', 'danger')
-            return render_template('login.html')
-
-        session['emp_code']           = user[0]
-        session['designation']        = user[2]
-        session['department']         = user[3]
-        session['admin']              = user[4]
-        session['photo']              = fms_hr_exit_get_default_photo(user[5])
-        session['email']              = user[6]
-        session['contact']            = user[7]
-        session['user_Access']        = user[8]
-        session['person_Accountable'] = user[9]
-        session['Reporting_DOER']     = user[10]
-        session['role'] = (
-            'admin'      if emp_code in ADMIN_IDS
-            else 'primary'    if emp_code in PRIMARY_DOER_IDS
-            else 'secondary'  if emp_code in SECONDARY_DOER_IDS
-            else 'dept_hod'
-        )
-        return redirect(url_for('dashboard'))
 
     return render_template('login.html')
 
@@ -102,29 +107,36 @@ def upload_photo():
         return redirect(url_for('login'))
 
     file = request.files.get('photo')
+
     if not file or file.filename == '':
         flash('No file selected', 'danger')
         return redirect(url_for('dashboard'))
 
-    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
-    if ext not in {'png', 'jpg', 'jpeg', 'webp'}:
-        flash('Invalid file type. Use PNG, JPG or WEBP.', 'danger')
+    if not allowed_file(file.filename):
+        flash('Invalid file type', 'danger')
         return redirect(url_for('dashboard'))
 
+    ext           = file.filename.rsplit('.', 1)[1].lower()
     filename      = secure_filename(f"{session['emp_code']}.{ext}")
     upload_folder = app.config['PROFILE_PHOTO_FOLDER']
     os.makedirs(upload_folder, exist_ok=True)
-    file.save(os.path.join(upload_folder, filename))
+
+    file_path = os.path.join(upload_folder, filename)
+    try:
+        file.save(file_path)
+        # print("FIle Saved Successfully ")
+    except Exception as e:
+        print(e)
+
     db_path = f"uploads/profile_photos/{filename}"
 
-    cur = mysql.connection.cursor()
-    cur.execute("""
-        UPDATE alcovedb_2024.Employee_Master SET Photo_Link=%s WHERE Emp_Code=%s
-    """, (db_path, session['emp_code']))
+    cur = mysql.connection.cursor(DictCursor)
+    cur.execute(
+        "UPDATE Employee_Master SET Photo_Link=%s WHERE Emp_Code=%s",
+        (db_path, session['emp_code'])
+    )
     mysql.connection.commit()
     cur.close()
-
-    session['photo'] = db_path
     flash('Profile photo updated', 'success')
     return redirect(url_for('dashboard'))
 
@@ -154,14 +166,13 @@ def dashboard():
 
     fixed_menus = {
         "HR Exit Process": [
-            ("Exit Process Panel", url_for('exit_panel')),
+            ("Exit Process Panel", url_for('fms_hr_exit_exit_panel')),
         ]
     }
     if fms_hr_exit_is_admin(emp_code):
         fixed_menus["HR Exit Process"].append(
             ("Admin Dashboard", url_for('fms_hr_exit_exit_admin_dashboard'))
         )
-
     return render_template(
         'dashboard.html',
         fixed_menus=fixed_menus,
@@ -182,8 +193,8 @@ def dashboard():
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
-    emp_code    = session.get('emp_code', '')
-    is_logged_in = 'readonly' if emp_code else ''
+    emp_code = session.get('emp_code', '')  # Prefill if logged in
+    is_logged_in = 'readonly' if emp_code else ''  # Set read-only if logged in
 
     if request.method == 'POST':
         emp_code     = request.form['emp_code']
@@ -191,9 +202,7 @@ def forgot_password():
         new_password = request.form['new_password']
 
         cur = mysql.connection.cursor()
-        cur.execute("""
-            SELECT password FROM alcovedb_2024.Employee_Master WHERE Emp_Code=%s
-        """, (emp_code,))
+        cur.execute("SELECT password FROM Employee_Master WHERE Emp_Code=%s", (emp_code,))
         user = cur.fetchone()
 
         if not user:
@@ -201,16 +210,16 @@ def forgot_password():
             return redirect(url_for('forgot_password'))
 
         if user[0] != old_password:
-            flash('Old password incorrect!', 'danger')
+            flash('Old password is incorrect!', 'danger')
             return redirect(url_for('forgot_password'))
 
-        cur.execute("""
-            UPDATE alcovedb_2024.Employee_Master SET password=%s WHERE Emp_Code=%s
-        """, (new_password, emp_code))
-        cur.execute("""
-            INSERT INTO alcovedb_2024.Password_Records (Emp_Code, New_Password)
-            VALUES (%s,%s)
-        """, (emp_code, new_password))
+        # Update the password in the Employee_Master table
+        cur.execute("UPDATE Employee_Master SET password=%s WHERE Emp_Code=%s", (new_password, emp_code))
+
+        # Insert a record into the Password_Records table to keep history
+        cur.execute("INSERT INTO Password_Records (Emp_Code, New_Password) VALUES (%s, %s)",
+                    (emp_code, new_password))
+
         mysql.connection.commit()
         cur.close()
 
@@ -219,7 +228,6 @@ def forgot_password():
 
     return render_template('forgot_password.html', emp_code=emp_code, is_logged_in=is_logged_in)
 
-
 # ================================== Logout ===================================================
 
 @app.route('/logout')
@@ -227,11 +235,11 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+#=========================================SERVER CODE FMS HR EXIT==========================================================
 
-
-def _fix_collation():
+def fms_hr_exit__fix_collation():
     conn = mysql.connection
-    for stmt in _COLLATION_SQL.split(';'):
+    for stmt in fms_hr_exit__COLLATION_SQL.split(';'):
         stmt = stmt.strip()
         if stmt:
             conn.query(stmt)
@@ -241,39 +249,39 @@ def _fix_collation():
                 pass
 
 @app.before_request
-def before_request_collation():
+def fms_hr_exit_before_request_collation():
     try:
-        _fix_collation()
+        fms_hr_exit__fix_collation()
     except Exception:
         pass
 
 # ================================== Role / Access Config =====================================
 # HR Executive — Primary Doer (full HR exit powers)
-PRIMARY_DOER_IDS   = {"AR000004"}   # Ayan Das
+fms_hr_exit_PRIMARY_DOER_IDS   = {"AR000356"}   # Ayan Das
 
 # HR HOD — Secondary Doer (same powers as Primary for exit process)
-SECONDARY_DOER_IDS = {"AR000003"}   # Subhodeep Kundu Chowdhury
+fms_hr_exit_SECONDARY_DOER_IDS = {"AR001866"}   # Subhodeep Kundu Chowdhury
 
 # Admin — full access
-ADMIN_IDS          = {"admin"}
+fms_hr_exit_ADMIN_IDS          = {"AR000623"}
 
 # Departmental HODs — can ONLY see/action P4 tasks (Mail System Team)
-# Populated dynamically from Employee_Master (HOD_ID column) at login.
+# Populated dynamically from Employee_Master (HOD_ID column) at fms_hr_exit_login.
 # We store them in session as role='dept_hod'.
 # Any employee whose emp_code appears as a HOD_ID in Employee_Master qualifies.
 # We also support a hardcoded set for fallback.
-DEPT_HOD_IDS: set = set()   # filled dynamically — see login()
+fms_hr_exit_DEPT_HOD_IDS: set = set()   # filled dynamically — see fms_hr_exit_login()
 
 # HR staff (Primary + Secondary) share full exit access
-HR_STAFF_IDS = PRIMARY_DOER_IDS | SECONDARY_DOER_IDS
+fms_hr_exit_HR_STAFF_IDS = fms_hr_exit_PRIMARY_DOER_IDS | fms_hr_exit_SECONDARY_DOER_IDS
 
 # Everyone who can log in at all
-EXIT_ALL_ACCESS = PRIMARY_DOER_IDS | SECONDARY_DOER_IDS | ADMIN_IDS
-# NOTE: dept_hod logins are also allowed — verified via DB lookup in login()
+fms_hr_exit_EXIT_ALL_ACCESS = fms_hr_exit_PRIMARY_DOER_IDS | fms_hr_exit_SECONDARY_DOER_IDS | fms_hr_exit_ADMIN_IDS
+# NOTE: dept_hod logins are also allowed — verified via DB lookup in fms_hr_exit_login()
 
 # ================================== Workflow Help Data =======================================
 
-WORKFLOW_HELP = {
+fms_hr_exit_WORKFLOW_HELP = {
     "P1": {
         "who":  "HR Executive / HR HOD",
         "what": "Receive Resignation — Mail & Exit Form Fill Up",
@@ -330,7 +338,7 @@ WORKFLOW_HELP = {
     }
 }
 
-STAGE_TIME_LIMITS = {
+fms_hr_exit_STAGE_TIME_LIMITS = {
     "P1":    0,
     "P2":    2 * 24 * 60 * 60,   # 2 days
     "P3":    2 * 60 * 60,         # 2 hours
@@ -350,9 +358,9 @@ STAGE_TIME_LIMITS = {
 #   - Saturday cutoff: 4:30 PM  → shift to Monday 10:00 AM
 #   - Skips public holidays from DB
 
-WORKDAY_START = dt_time(10, 0)     # 10:00 AM
-WEEKDAY_END   = dt_time(18, 30)   # 6:30 PM  (Mon–Fri)
-SATURDAY_END  = dt_time(16, 30)   # 4:30 PM  (Saturday)
+fms_hr_exit_WORKDAY_START = dt_time(10, 0)     # 10:00 AM
+fms_hr_exit_WEEKDAY_END   = dt_time(18, 30)   # 6:30 PM  (Mon–Fri)
+fms_hr_exit_SATURDAY_END  = dt_time(16, 30)   # 4:30 PM  (Saturday)
 
 def fms_hr_exit__fetch_holidays(location=None):
     """Return a set of date objects that are public holidays."""
@@ -382,11 +390,11 @@ def fms_hr_exit__is_working_day(d, holidays):
 def fms_hr_exit__day_end(d):
     """Return the cutoff time for a given date."""
     if d.weekday() == 5:   # Saturday
-        return datetime.combine(d, SATURDAY_END)
-    return datetime.combine(d, WEEKDAY_END)
+        return datetime.combine(d, fms_hr_exit_SATURDAY_END)
+    return datetime.combine(d, fms_hr_exit_WEEKDAY_END)
 
 def fms_hr_exit__day_start(d):
-    return datetime.combine(d, WORKDAY_START)
+    return datetime.combine(d, fms_hr_exit_WORKDAY_START)
 
 def fms_hr_exit_calculate_deadline(start_dt, duration_seconds, location=None):
     """
@@ -519,10 +527,10 @@ def fms_hr_exit__get_all_dept_hod_ids():
 
 # ================================== Role Helpers =============================================
 
-def fms_hr_exit_is_primary(emp_code):    return emp_code in PRIMARY_DOER_IDS
-def fms_hr_exit_is_secondary(emp_code):  return emp_code in SECONDARY_DOER_IDS
-def fms_hr_exit_is_admin(emp_code):      return emp_code in ADMIN_IDS
-def fms_hr_exit_is_hr_staff(emp_code):   return emp_code in HR_STAFF_IDS or fms_hr_exit_is_admin(emp_code)
+def fms_hr_exit_is_primary(emp_code):    return emp_code in fms_hr_exit_PRIMARY_DOER_IDS
+def fms_hr_exit_is_secondary(emp_code):  return emp_code in fms_hr_exit_SECONDARY_DOER_IDS
+def fms_hr_exit_is_admin(emp_code):      return emp_code in fms_hr_exit_ADMIN_IDS
+def fms_hr_exit_is_hr_staff(emp_code):   return emp_code in fms_hr_exit_HR_STAFF_IDS or fms_hr_exit_is_admin(emp_code)
 
 def fms_hr_exit_is_dept_hod(emp_code):
     """True if this user is a departmental HOD (not HR staff)."""
@@ -530,7 +538,7 @@ def fms_hr_exit_is_dept_hod(emp_code):
 
 def fms_hr_exit_can_access_exit(emp_code):
     """HR staff, admin, and dept HODs can all access the exit panel."""
-    return (emp_code in EXIT_ALL_ACCESS) or (session.get('role') == 'dept_hod')
+    return (emp_code in fms_hr_exit_EXIT_ALL_ACCESS) or (session.get('role') == 'dept_hod')
 
 # ================================== Login ====================================================
 
@@ -544,10 +552,10 @@ def fms_hr_exit_log_stage(cur, exit_request_id, stage, action, done_by, remarks,
     """, (exit_request_id, stage, action, done_by, remarks, attachment))
 
 
-FMS_PROJECT = 'HR Exit Process'
-FMS_NAME    = 'fms_hr_exit_process_annex'
+fms_hr_exit_FMS_PROJECT = 'HR Exit Process'
+fms_hr_exit_FMS_NAME    = 'fms_hr_exit_process_annex'
 
-STAGE_STATUS_MAP = {
+fms_hr_exit_STAGE_STATUS_MAP = {
     'P1': 'OPEN',
     'P2': 'OPEN',
     'P3': 'OPEN',
@@ -583,13 +591,8 @@ def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, emp_id,
             cur.close(); return
 
         task_name   = str(er['id'])
-        status      = STAGE_STATUS_MAP.get(to_stage, 'OPEN')
-        task_detail = (
-            f"Exit: {er['employee_name']} ({er['employee_code']}) "
-            f"| Dept: {er.get('department', '')} "
-            f"| Exit Date: {er.get('date_of_exit', '')} "
-            f"| Stage: {to_stage}"
-        )
+        status      = fms_hr_exit_STAGE_STATUS_MAP.get(to_stage, 'OPEN')
+        task_detail = to_stage
         created_emp = er.get('created_by') or emp_id
         eff_planned = planned_end_time
         if eff_planned is None and er.get('date_of_exit'):
@@ -631,8 +634,8 @@ def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, emp_id,
             er.get('hod_id', ''), er.get('hod', ''),
             allocate_to or er.get('reporting_doer', ''),
             allocate_emp_id or er.get('reporting_doer_id', ''),
-            created_emp, FMS_PROJECT, task_detail,
-            to_stage, FMS_NAME, er.get('location', '')
+            created_emp, fms_hr_exit_FMS_PROJECT, task_detail,
+            to_stage, fms_hr_exit_FMS_NAME, er.get('location', '')
         ))
 
         cur.execute("""
@@ -664,7 +667,7 @@ def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, emp_id,
             decision, emp_id,
             allocate_to or er.get('reporting_doer', ''),
             allocate_emp_id or er.get('reporting_doer_id', ''),
-            FMS_PROJECT, FMS_NAME
+            fms_hr_exit_FMS_PROJECT, fms_hr_exit_FMS_NAME
         ))
 
         cur.close()
@@ -730,16 +733,14 @@ def fms_hr_exit_exit_all_employees():
 # ================================== Exit Panel (List View) ===================================
 
 @app.route('/exit')
-def exit_panel():
+def fms_hr_exit_exit_panel():
     if 'emp_code' not in session:
         return redirect(url_for('login'))
 
     emp_code = session['emp_code']
     role     = session.get('role')
 
-    if not fms_hr_exit_can_access_exit(emp_code):
-        flash('Access denied.', 'danger')
-        return redirect(url_for('dashboard'))
+    no_pending_tasks = not fms_hr_exit_can_access_exit(emp_code)
 
     show_archived = bool(request.args.get('show_archived'))
 
@@ -804,9 +805,10 @@ def exit_panel():
     return render_template(
         'exit_panel.html',
         tasks=display_tasks,
+        no_pending_tasks=no_pending_tasks,
         metrics=metrics,
         show_archived=show_archived,
-        help_data=WORKFLOW_HELP,
+        help_data=fms_hr_exit_WORKFLOW_HELP,
         now=datetime.now(),
         person_Accountable=session['person_Accountable'],
         emp_code=emp_code,
@@ -830,8 +832,7 @@ def fms_hr_exit_exit_create():
     emp_code = session['emp_code']
     # Only HR staff / admin can create exit requests (not dept HOD)
     if not fms_hr_exit_is_hr_staff(emp_code):
-        flash('Access denied. Only HR staff can initiate exit requests.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     employee_code     = request.form.get('employee_code', '').strip().upper()
     employee_name     = request.form.get('employee_name', '').strip()
@@ -845,8 +846,7 @@ def fms_hr_exit_exit_create():
     remarks           = request.form.get('remarks', '').strip()
 
     if not employee_code or not date_of_exit:
-        flash('Employee Code and Date of Exit are required.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     cur_check = mysql.connection.cursor(DictCursor)
     cur_check.execute("""
@@ -857,11 +857,7 @@ def fms_hr_exit_exit_create():
     cur_check.close()
 
     if not emp_check:
-        flash(f'Employee {employee_code} not found in HR Master. Cannot create exit request.', 'danger')
-        return redirect(url_for('exit_panel'))
-
-    if (emp_check.get('STATUS') or '').upper() != 'ACTIVE':
-        flash(f'Warning: Employee {employee_code} is currently INACTIVE in HR Master. Exit request created, but please verify.', 'warning')
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     location    = emp_check.get('Location') or ''
     attach_path = fms_hr_exit_save_attachment(request.files.get('attachment'), 'exit_p1')
@@ -893,8 +889,7 @@ def fms_hr_exit_exit_create():
     mysql.connection.commit()
     cur.close()
 
-    flash(f'Exit request initiated for {employee_name}. Now at P2 — HOD Confirmation.', 'success')
-    return redirect(url_for('exit_panel'))
+    return redirect(url_for('fms_hr_exit_exit_panel'))
 
 
 # ================================== P2 — HOD Confirmation Decision ===========================
@@ -906,16 +901,14 @@ def fms_hr_exit_exit_p2_decision(req_id):
 
     emp_code = session['emp_code']
     if not fms_hr_exit_is_hr_staff(emp_code):
-        flash('Access denied.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     decision    = request.form.get('decision', '').upper()
     remarks     = request.form.get('remarks', '').strip()
     attach_path = fms_hr_exit_save_attachment(request.files.get('attachment'), 'exit_p2')
 
     if decision not in ('YES', 'NO'):
-        flash('Invalid decision value.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     # Get employee location for holiday-aware deadline
     cur_loc = mysql.connection.cursor(DictCursor)
@@ -932,7 +925,7 @@ def fms_hr_exit_exit_p2_decision(req_id):
     cur = mysql.connection.cursor()
 
     if decision == 'YES':
-        deadline = fms_hr_exit_calculate_deadline(datetime.now(), STAGE_TIME_LIMITS['P3'], location)
+        deadline = fms_hr_exit_calculate_deadline(datetime.now(), fms_hr_exit_STAGE_TIME_LIMITS['P3'], location)
         cur.execute("""
             UPDATE fms_exit_process_annex.exit_requests
             SET workflow_stage='P3',
@@ -945,11 +938,10 @@ def fms_hr_exit_exit_p2_decision(req_id):
         fms_hr_exit_fms_sync(cur, req_id, 'P2', 'P3', emp_code,
                  remarks=remarks, attachment=attach_path,
                  planned_end_time=deadline, decision='YES')
-        flash('Resignation accepted by HOD. Moved to P3 — Update Exit Details.', 'success')
 
     else:  # NO → P9
         # P9 deadline = 2 working hours from now
-        p9_deadline = fms_hr_exit_calculate_deadline(datetime.now(), STAGE_TIME_LIMITS['P9'], location)
+        p9_deadline = fms_hr_exit_calculate_deadline(datetime.now(), fms_hr_exit_STAGE_TIME_LIMITS['P9'], location)
         cur.execute("""
             UPDATE fms_exit_process_annex.exit_requests
             SET workflow_stage='P9', status='REJECTED',
@@ -963,11 +955,10 @@ def fms_hr_exit_exit_p2_decision(req_id):
         fms_hr_exit_fms_sync(cur, req_id, 'P2', 'P9', emp_code,
                  remarks=remarks, attachment=attach_path, decision='NO',
                  planned_end_time=p9_deadline)
-        flash('Resignation rejected. Process ended at P9.', 'warning')
 
     mysql.connection.commit()
     cur.close()
-    return redirect(url_for('exit_panel'))
+    return redirect(url_for('fms_hr_exit_exit_panel'))
 
 
 # ================================== P9 — Acknowledge Rejection (Close) ======================
@@ -980,8 +971,7 @@ def fms_hr_exit_exit_p9_close(req_id):
 
     emp_code = session['emp_code']
     if not fms_hr_exit_is_hr_staff(emp_code):
-        flash('Access denied.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     remarks = request.form.get('remarks', '').strip()
 
@@ -999,8 +989,7 @@ def fms_hr_exit_exit_p9_close(req_id):
     mysql.connection.commit()
     cur.close()
 
-    flash('P9 acknowledged. Rejection process closed.', 'success')
-    return redirect(url_for('exit_panel'))
+    return redirect(url_for('fms_hr_exit_exit_panel'))
 
 
 # ================================== P3 — Update Exit Details =================================
@@ -1012,8 +1001,7 @@ def fms_hr_exit_exit_p3_update(req_id):
 
     emp_code = session['emp_code']
     if not fms_hr_exit_is_hr_staff(emp_code):
-        flash('Access denied.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     remarks     = request.form.get('remarks', '').strip()
     attach_path = fms_hr_exit_save_attachment(request.files.get('attachment'), 'exit_p3')
@@ -1057,8 +1045,7 @@ def fms_hr_exit_exit_p3_update(req_id):
     mysql.connection.commit()
     cur2.close()
 
-    flash('Exit details updated. Now at P4 — Dept HOD to mail System Team for task transfer.', 'success')
-    return redirect(url_for('exit_panel'))
+    return redirect(url_for('fms_hr_exit_exit_panel'))
 
 
 # ================================== P5 — Share Exit Interview Link ===========================
@@ -1070,8 +1057,7 @@ def fms_hr_exit_exit_p5_done(req_id):
 
     emp_code = session['emp_code']
     if not fms_hr_exit_is_hr_staff(emp_code):
-        flash('Only HR Executive or HR HOD can complete P5.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     remarks     = request.form.get('remarks', '').strip()
     attach_path = fms_hr_exit_save_attachment(request.files.get('attachment'), 'exit_p5')
@@ -1085,8 +1071,7 @@ def fms_hr_exit_exit_p5_done(req_id):
     cur.close()
 
     if not row:
-        flash('Request not found or already closed.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     p6_dl = datetime.combine(row['date_of_exit'], dt_time(14, 0)) if row.get('date_of_exit') else None
 
@@ -1105,8 +1090,7 @@ def fms_hr_exit_exit_p5_done(req_id):
     mysql.connection.commit()
     cur2.close()
 
-    flash('P5 done. Moved to P6 — Handover Doc + Asset Clearance.', 'success')
-    return redirect(url_for('exit_panel'))
+    return redirect(url_for('fms_hr_exit_exit_panel'))
 
 
 # ================================== P4 — Mail System Team (Dept HOD) → advance to P5 =========
@@ -1121,8 +1105,7 @@ def fms_hr_exit_exit_p4_done(req_id):
 
     # P4 is exclusively for Dept HOD (or Admin)
     if role not in ('dept_hod', 'admin'):
-        flash('Only Departmental HOD can complete P4.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     remarks     = request.form.get('remarks', '').strip()
     new_person  = request.form.get('new_assigned_person', '').strip()
@@ -1137,8 +1120,7 @@ def fms_hr_exit_exit_p4_done(req_id):
     cur.close()
 
     if not row:
-        flash('Request not found, already closed, or not at P4 stage.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     p5_deadline = datetime.combine(row['date_of_exit'], dt_time(11, 0)) if row.get('date_of_exit') else None
 
@@ -1161,8 +1143,7 @@ def fms_hr_exit_exit_p4_done(req_id):
     mysql.connection.commit()
     cur2.close()
 
-    flash('P4 done. System team mail confirmed. Now at P5 — Share Exit Interview Link.', 'success')
-    return redirect(url_for('exit_panel'))
+    return redirect(url_for('fms_hr_exit_exit_panel'))
 
 
 # ================================== P6 — Handover + Clearance ================================
@@ -1174,8 +1155,7 @@ def fms_hr_exit_exit_p6_done(req_id):
 
     emp_code = session['emp_code']
     if not fms_hr_exit_is_hr_staff(emp_code):
-        flash('Access denied.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     remarks     = request.form.get('remarks', '').strip()
     attach_path = fms_hr_exit_save_attachment(request.files.get('attachment'), 'exit_p6')
@@ -1200,8 +1180,7 @@ def fms_hr_exit_exit_p6_done(req_id):
     mysql.connection.commit()
     cur.close()
 
-    flash('P6 done. Moved to P7 — Issue Release & Experience Letter.', 'success')
-    return redirect(url_for('exit_panel'))
+    return redirect(url_for('fms_hr_exit_exit_panel'))
 
 
 # ================================== P7 — Issue Release + Experience Letter ===================
@@ -1213,8 +1192,7 @@ def fms_hr_exit_exit_p7_done(req_id):
 
     emp_code = session['emp_code']
     if not fms_hr_exit_is_hr_staff(emp_code):
-        flash('Access denied.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     remarks     = request.form.get('remarks', '').strip()
     attach_path = fms_hr_exit_save_attachment(request.files.get('attachment'), 'exit_p7')
@@ -1239,8 +1217,7 @@ def fms_hr_exit_exit_p7_done(req_id):
     mysql.connection.commit()
     cur.close()
 
-    flash('P7 done. Moved to P8 — Complete Exit.', 'success')
-    return redirect(url_for('exit_panel'))
+    return redirect(url_for('fms_hr_exit_exit_panel'))
 
 
 # ================================== P8 — Mark Inactive & Close (FINAL) ======================
@@ -1252,8 +1229,7 @@ def fms_hr_exit_exit_p8_done(req_id):
 
     emp_code = session['emp_code']
     if not fms_hr_exit_is_hr_staff(emp_code):
-        flash('Access denied.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     remarks     = request.form.get('remarks', '').strip()
     attach_path = fms_hr_exit_save_attachment(request.files.get('attachment'), 'exit_p8')
@@ -1267,12 +1243,10 @@ def fms_hr_exit_exit_p8_done(req_id):
     cur.close()
 
     if not row:
-        flash('Exit request not found.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     if row.get('p4_status') != 'DONE':
-        flash('Cannot complete exit (P8) — P4 (System Team Mail by Dept HOD) must be completed first.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     emp_name = row['employee_name'] or ''
 
@@ -1293,8 +1267,7 @@ def fms_hr_exit_exit_p8_done(req_id):
     mysql.connection.commit()
     cur2.close()
 
-    flash(f'P8 complete. Exit process for {emp_name} is now CLOSED. Please ensure employee is marked INACTIVE in the HR portal.', 'success')
-    return redirect(url_for('exit_panel'))
+    return redirect(url_for('fms_hr_exit_exit_panel'))
 
 
 # ================================== Exit Request Detail ======================================
@@ -1306,8 +1279,7 @@ def fms_hr_exit_exit_detail(req_id):
 
     emp_code = session['emp_code']
     if not fms_hr_exit_can_access_exit(emp_code):
-        flash('Access denied.', 'danger')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('fms_hr_exit_exit_admin_dashboard'))
 
     cur = mysql.connection.cursor(DictCursor)
     cur.execute("""
@@ -1329,15 +1301,14 @@ def fms_hr_exit_exit_detail(req_id):
     cur.close()
 
     if not req_data:
-        flash('Exit request not found.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     role = session.get('role')
     return render_template(
         'fms_hr_exit_exit_detail.html',
         req=req_data,
         audit_log=audit_log,
-        help_data=WORKFLOW_HELP,
+        help_data=fms_hr_exit_WORKFLOW_HELP,
         now=datetime.now(),
         person_Accountable=session['person_Accountable'],
         emp_code=emp_code,
@@ -1360,8 +1331,7 @@ def fms_hr_exit_exit_admin_dashboard():
 
     emp_code = session['emp_code']
     if not fms_hr_exit_is_admin(emp_code):
-        flash('Admin access only.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     cur = mysql.connection.cursor(DictCursor)
     cur.execute("""
@@ -1384,10 +1354,10 @@ def fms_hr_exit_exit_admin_dashboard():
     }
 
     return render_template(
-        'exit_admin_stage_dashboard.html',
+        'fms_hr_exit_exit_admin_stage_dashboard.html',
         tasks=tasks,
         metrics=metrics,
-        help_data=WORKFLOW_HELP,
+        help_data=fms_hr_exit_WORKFLOW_HELP,
         now=datetime.now(),
         person_Accountable=session['person_Accountable'],
         emp_code=emp_code,
@@ -1402,14 +1372,13 @@ def fms_hr_exit_exit_admin_dashboard():
 # ================================== Admin All-Stage Dashboard ================================
 
 @app.route('/exit/admin_stage_dashboard')
-def exit_admin_stage_dashboard():
+def fms_hr_exit_exit_admin_stage_dashboard():
     if 'emp_code' not in session:
         return redirect(url_for('login'))
 
     emp_code = session['emp_code']
     if not fms_hr_exit_is_admin(emp_code):
-        flash('Admin access only.', 'danger')
-        return redirect(url_for('exit_panel'))
+        return redirect(url_for('fms_hr_exit_exit_panel'))
 
     import time
     from collections import defaultdict
@@ -1448,7 +1417,7 @@ def exit_admin_stage_dashboard():
     query_ms = (time.time() - t0) * 1000
 
     return render_template(
-        'exit_admin_stage_dashboard.html',
+        'fms_hr_exit_exit_admin_stage_dashboard.html',
         tasks=tasks,
         query_ms=query_ms,
         now=datetime.now(),
@@ -1485,7 +1454,7 @@ def fms_hr_exit_exit_holidays():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+#==============================================FMS CODE ENDS HERE================================================
 # ================================== Run =============================================
 
 if __name__ == "__main__":

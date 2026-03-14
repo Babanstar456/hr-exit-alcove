@@ -300,10 +300,10 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
   </div>
 
   <div class="nav-center">
-    <a href="{{ url_for('dashboard') }}" class="nav-pill">
+    <a href="{{ url_for('fms_hr_exit_exit_admin_dashboard') }}" class="nav-pill">
       <i class="fas fa-th-large"></i> Dashboard
     </a>
-    <a href="{{ url_for('exit_panel') }}" class="nav-pill active">
+    <a href="{{ url_for('fms_hr_exit_exit_panel') }}" class="nav-pill active">
       <i class="fas fa-door-open"></i> HR Exit Process
     </a>
     {% if is_admin_user %}
@@ -315,7 +315,7 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
   </div>
 
   <div class="nav-right">
-    <a href="{{ url_for('dashboard') }}" class="btn-back-dash">
+    <a href="{{ url_for('fms_hr_exit_exit_admin_dashboard') }}" class="btn-back-dash">
       <i class="fas fa-arrow-left"></i> Back to Dashboard
     </a>
     <div class="profile-chip" title="{{ person_Accountable }}">
@@ -357,11 +357,11 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
     </div>
     <div class="d-flex" style="gap:8px;flex-wrap:wrap;align-items:center">
       {% if not show_archived %}
-      <a href="{{ url_for('exit_panel', show_archived=1) }}" class="btn btn-sm btn-outline-secondary">
+      <a href="{{ url_for('fms_hr_exit_exit_panel', show_archived=1) }}" class="btn btn-sm btn-outline-secondary">
         <i class="fas fa-archive mr-1"></i>View Archive
       </a>
       {% else %}
-      <a href="{{ url_for('exit_panel') }}" class="btn btn-sm btn-outline-primary">
+      <a href="{{ url_for('fms_hr_exit_exit_panel') }}" class="btn btn-sm btn-outline-primary">
         <i class="fas fa-list mr-1"></i>Active Tasks
       </a>
       {% endif %}
@@ -473,18 +473,6 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
       </div>
     </div>
   </div>
-
-  <!-- ── FLASH MESSAGES ── -->
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="close" data-dismiss="alert">&times;</button>
-      </div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
 
   <!-- ── WORKFLOW TABLE ── -->
   <div class="card">
@@ -615,7 +603,6 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
                   <span class="stage-badge sb-blue">P3</span>
                 {% elif display_stage == 'P4' %}
                   <span class="stage-badge sb-purple">P4</span>
-                  <div style="margin-top:3px;font-size:0.7rem;color:#6b21a8">Dept HOD</div>
                 {% elif display_stage == 'P5' %}
                   <span class="stage-badge sb-blue">P5</span>
                 {% elif display_stage == 'P6' %}
@@ -626,7 +613,6 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
                   <span class="stage-badge sb-green">P8</span>
                 {% elif display_stage == 'P9' %}
                   <span class="stage-badge sb-red">P9</span>
-                  <div style="margin-top:3px;font-size:0.7rem;color:#991b1b">Rejected</div>
                 {% else %}
                   <span class="stage-badge sb-orange">{{ display_stage }}</span>
                 {% endif %}
@@ -1353,7 +1339,9 @@ _portal.innerHTML =
     '<span style="color:#7dd3fc;font-size:0.7rem">↑↓ navigate &nbsp;· Enter select &nbsp;· Esc close</span>' +
   '</div>' +
   '<div class="dd-list" id="ddList"></div>';
-document.body.appendChild(_portal);
+// Append inside the modal so it's hidden automatically when modal closes
+var _modalEl = document.getElementById("exitFormModal");
+(_modalEl || document.body).appendChild(_portal);
 
 var _ddList  = document.getElementById("ddList");
 var _ddCount = document.getElementById("ddCountLabel");
@@ -1833,14 +1821,43 @@ function clearFilters() {
 $(document).ready(function() {
   applyFilters();
 
-  $('#exitFormModal').on('hidden.bs.modal', function(){
+  // Close dropdown immediately when modal starts closing (X, Cancel, backdrop click)
+  $('#exitFormModal').on('hide.bs.modal', function(){
     closeDropdown();
+  });
+
+  $('#exitFormModal').on('hidden.bs.modal', function(){
     clearEmpSelection();
     var f = document.getElementById("exitCreateForm"); if (f) f.reset();
     var fb = document.getElementById("empFetchBox");   if (fb) fb.style.display = "none";
     var sw = document.getElementById("empStatusWarn"); if (sw) sw.style.display = "none";
     var sb = document.getElementById("exitSubmitBtn"); if (sb) sb.disabled = true;
     var dw = document.getElementById("exitDateHolidayWarn"); if (dw) dw.style.display = "none";
+    // Force-clean Bootstrap backdrop & body state after POST redirect
+    $('body').removeClass('modal-open').css('padding-right', '');
+    $('.modal-backdrop').remove();
+  });
+
+  // Intercept all modal form submits — clean Bootstrap state before page navigates away
+  document.querySelectorAll('.modal form').forEach(function(form) {
+    form.addEventListener('submit', function() {
+      closeDropdown();
+      document.querySelectorAll('.modal.show').forEach(function(m) {
+        m.classList.remove('show'); m.style.display = 'none';
+      });
+      document.querySelectorAll('.modal-backdrop').forEach(function(bd) {
+        bd.parentNode.removeChild(bd);
+      });
+      document.body.classList.remove('modal-open');
+      document.body.style.paddingRight = '';
+    });
+  });
+
+  // Clean up on page load in case a previous POST left residue
+  document.body.classList.remove('modal-open');
+  document.body.style.paddingRight = '';
+  document.querySelectorAll('.modal-backdrop').forEach(function(bd) {
+    bd.parentNode.removeChild(bd);
   });
 
   $('#exitFormModal').on('scroll', function(){ positionPortal(); });
@@ -1882,6 +1899,35 @@ function exportTablePDF() {
   doc.save("HR_Exit_Process_" + new Date().toISOString().slice(0,10) + ".pdf");
 }
 </script>
+
+{% if no_pending_tasks %}
+<style>
+  /* Blur entire page content behind overlay */
+  body > *:not(#noPendingTasksOverlay) { filter: blur(6px); pointer-events: none; user-select: none; }
+</style>
+<!-- No Pending Tasks Dialog -->
+<div id="noPendingTasksOverlay" style="
+    position:fixed;inset:0;background:rgba(15,23,42,.65);
+    z-index:9999;display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+  <div style="
+      background:#fff;border-radius:16px;padding:40px 36px;
+      max-width:420px;width:90%;text-align:center;
+      box-shadow:0 24px 64px rgba(0,0,0,.4);">
+    <div style="font-size:3rem;margin-bottom:12px;">📋</div>
+    <h4 style="margin:0 0 10px;color:#1e293b;font-weight:700;">No Pending Requests</h4>
+    <p style="color:#64748b;margin:0 0 24px;line-height:1.6;">
+      You don't have any pending exit process requests assigned to you at this time.
+    </p>
+    <a href="{{ url_for('logout') }}" style="
+        display:inline-block;background:#ef4444;color:#fff;
+        padding:10px 28px;border-radius:8px;text-decoration:none;
+        font-weight:600;font-size:.95rem;">
+      Logout
+    </a>
+  </div>
+</div>
+{% endif %}
 
 </body>
 </html>
