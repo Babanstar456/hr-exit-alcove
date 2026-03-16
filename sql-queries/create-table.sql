@@ -1,155 +1,225 @@
-CREATE DATABASE `fms_exit_process_annex` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
-use fms_exit_process_annex;
-CREATE TABLE `exit_requests` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `employee_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `employee_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `department` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `hod` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `hod_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `doj` date DEFAULT NULL,
-  `reporting_doer` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `reporting_doer_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `date_of_exit` date NOT NULL,
-  `status` enum('OPEN','CLOSED','REJECTED','CANCELLED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'OPEN',
-  `workflow_stage` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'P1',
-  `stage_started_at` datetime DEFAULT NULL,
-  `deadline_at` datetime DEFAULT NULL,
-  `created_by` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `p1_remarks` text COLLATE utf8mb4_unicode_ci,
-  `p1_attachment` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p1_done_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p1_done_at` datetime DEFAULT NULL,
-  `p2_decision` enum('YES','NO') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p2_remarks` text COLLATE utf8mb4_unicode_ci,
-  `p2_attachment` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p2_done_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p2_done_at` datetime DEFAULT NULL,
-  `p3_remarks` text COLLATE utf8mb4_unicode_ci,
-  `p3_attachment` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p3_done_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p3_done_at` datetime DEFAULT NULL,
-  `p4_status` enum('PENDING','DONE') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
-  `p4_remarks` text COLLATE utf8mb4_unicode_ci,
-  `p4_attachment` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p4_done_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p4_done_at` datetime DEFAULT NULL,
-  `p5_remarks` text COLLATE utf8mb4_unicode_ci,
-  `p5_attachment` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p5_done_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p5_done_at` datetime DEFAULT NULL,
-  `p6_remarks` text COLLATE utf8mb4_unicode_ci,
-  `p6_attachment` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p6_done_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p6_done_at` datetime DEFAULT NULL,
-  `p7_remarks` text COLLATE utf8mb4_unicode_ci,
-  `p7_attachment` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p7_done_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p7_done_at` datetime DEFAULT NULL,
-  `p8_remarks` text COLLATE utf8mb4_unicode_ci,
-  `p8_attachment` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p8_done_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p8_done_at` datetime DEFAULT NULL,
-  `p9_status` enum('PENDING','DONE') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
-  `p9_new_assigned_person` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p9_deadline` datetime DEFAULT NULL,
-  `p9_remarks` text COLLATE utf8mb4_unicode_ci,
-  `p9_attachment` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p9_done_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p9_done_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_employee_code` (`employee_code`),
-  KEY `idx_status` (`status`),
-  KEY `idx_workflow_stage` (`workflow_stage`),
-  KEY `idx_date_of_exit` (`date_of_exit`),
-  KEY `idx_created_by` (`created_by`),
-  KEY `idx_hod_id` (`hod_id`),
-  KEY `idx_created_at` (`created_at`),
-  KEY `idx_p2_decision` (`p2_decision`),
-  KEY `idx_p4_status` (`p4_status`),
-  KEY `idx_p9_status` (`p9_status`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='HR Exit Process workflow P1-P9 (Annexure 1)';
-CREATE TABLE `exit_stage_log` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `exit_request_id` int unsigned NOT NULL,
-  `stage` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `action` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `done_by` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `done_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
-  `attachment` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_exit_request_id` (`exit_request_id`),
-  KEY `idx_stage` (`stage`),
-  KEY `idx_done_by` (`done_by`),
-  KEY `idx_done_at` (`done_at`),
-  CONSTRAINT `fk_log_exit` FOREIGN KEY (`exit_request_id`) REFERENCES `exit_requests` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Audit trail for every action in exit workflow';
-CREATE TABLE `pc_updates` (
-  `update_id` int NOT NULL AUTO_INCREMENT,
-  `task_id` int DEFAULT NULL,
-  `task_name` varchar(255) DEFAULT NULL,
-  `from_stage` varchar(10) DEFAULT NULL,
-  `current_stage` varchar(10) DEFAULT NULL,
-  `planned_end_time` datetime DEFAULT NULL,
-  `remark` text,
-  `next_planned_end_time` datetime DEFAULT NULL,
-  `followup_stage` varchar(10) DEFAULT NULL,
-  `updated_at` datetime DEFAULT NULL,
-  `emp_id` varchar(255) DEFAULT NULL,
-  `actual_emp_code` varchar(255) DEFAULT NULL,
-  `actual_emp_name` varchar(255) DEFAULT NULL,
-  `hod_emp_code` varchar(255) DEFAULT NULL,
-  `1st_planned_end_time` datetime DEFAULT NULL,
-  `submitted_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `fms_name` varchar(50) DEFAULT NULL,
-  `updated_by` varchar(50) DEFAULT NULL,
-  PRIMARY KEY (`update_id`),
-  KEY `task_id` (`task_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-CREATE TABLE `task_updates` (
-  `update_id` int NOT NULL DEFAULT '0',
-  `task_id` int DEFAULT NULL,
-  `task_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `from_stage` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `to_stage` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `remark` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
-  `attachment_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `planned_end_time` datetime DEFAULT NULL,
-  `decision` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `emp_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `actual_time` datetime DEFAULT NULL,
-  `allocate_to` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `allocate_emp_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `project` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `fms_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT 'fms_con_sangamtask'
+-- ============================================================
+-- HR EXIT PROCESS — Full Table Creation SQL
+-- Databases: fms_exit_process_annex, alcovedb_2024, alcove_checklist
+-- ============================================================
+
+-- ── Create schemas if not exists ─────────────────────────────
+CREATE DATABASE IF NOT EXISTS fms_exit_process_annex
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS alcovedb_2024
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS alcove_checklist
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+
+-- ============================================================
+-- DATABASE: alcovedb_2024
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS alcovedb_2024.Employee_Master (
+    Emp_Code            VARCHAR(20)     NOT NULL PRIMARY KEY,
+    Person_Accountable  VARCHAR(255)    DEFAULT NULL,
+    password            VARCHAR(255)    DEFAULT NULL,
+    Designation         VARCHAR(255)    DEFAULT NULL,
+    Department          VARCHAR(255)    DEFAULT NULL,
+    Admin               TINYINT(1)      DEFAULT 0,
+    Photo_Link          VARCHAR(500)    DEFAULT NULL,
+    Email_ID_Official   VARCHAR(255)    DEFAULT NULL,
+    Contact_number      VARCHAR(20)     DEFAULT NULL,
+    user_Access         VARCHAR(100)    DEFAULT NULL,
+    Reporting_DOER      VARCHAR(255)    DEFAULT NULL,
+    Reporting_DOER_id   VARCHAR(20)     DEFAULT NULL,
+    HOD                 VARCHAR(255)    DEFAULT NULL,
+    HOD_ID              VARCHAR(20)     DEFAULT NULL,
+    DOJ                 DATE            DEFAULT NULL,
+    Location            VARCHAR(255)    DEFAULT NULL,
+    Company             VARCHAR(255)    DEFAULT NULL,
+    STATUS              VARCHAR(20)     DEFAULT 'ACTIVE'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE TABLE `tasks` (
-  `task_id` int NOT NULL DEFAULT '0',
-  `task_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `current_stage` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `from_stage` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `remark` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
-  `attachment_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `planned_end_time` datetime DEFAULT NULL,
-  `submit_emp_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `emp_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `emp_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `actual_emp_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `location` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `hod_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `hod_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `actual_time` datetime DEFAULT NULL,
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-  `allocate_to` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `allocate_emp_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `created_emp_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `project` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `task_details` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `1st_planned_end_time` datetime DEFAULT NULL,
-  `pc_update_stage` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `fms_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT 'fms_con_sangamtask',
-  UNIQUE KEY `uq_task_name` (`task_name`)
+
+
+CREATE TABLE IF NOT EXISTS alcovedb_2024.Password_Records (
+    id          INT             NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    Emp_Code    VARCHAR(20)     NOT NULL,
+    New_Password VARCHAR(255)   NOT NULL,
+    changed_at  DATETIME        DEFAULT NOW()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
+-- DATABASE: alcove_checklist
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS alcove_checklist.holidaylist (
+    id              INT             NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    holiday_name    VARCHAR(255)    NOT NULL,
+    date            DATE            NOT NULL,
+    location        VARCHAR(255)    DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
+-- DATABASE: fms_exit_process_annex
+-- ============================================================
+
+-- ── 1. exit_requests ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS fms_exit_process_annex.exit_requests (
+    id                  INT             NOT NULL AUTO_INCREMENT PRIMARY KEY,
+
+    -- Employee info
+    employee_code       VARCHAR(20)     DEFAULT NULL,
+    employee_name       VARCHAR(255)    DEFAULT NULL,
+    department          VARCHAR(255)    DEFAULT NULL,
+    hod                 VARCHAR(255)    DEFAULT NULL,
+    hod_id              VARCHAR(20)     DEFAULT NULL,
+    doj                 DATE            DEFAULT NULL,
+    reporting_doer      VARCHAR(255)    DEFAULT NULL,
+    reporting_doer_id   VARCHAR(20)     DEFAULT NULL,
+    date_of_exit        DATE            DEFAULT NULL,
+
+    -- Workflow control
+    status              ENUM('PENDING','COMPLETE','REJECTED','CANCELLED')
+                                        NOT NULL DEFAULT 'PENDING',
+    workflow_stage      VARCHAR(10)     DEFAULT 'P1',
+    stage_started_at    DATETIME        DEFAULT NULL,
+    deadline_at         DATETIME        DEFAULT NULL,
+    created_by          VARCHAR(20)     DEFAULT NULL,
+    created_at          DATETIME        DEFAULT NOW(),
+
+    -- P1 — Receive Resignation
+    p1_remarks          TEXT            DEFAULT NULL,
+    p1_attachment       VARCHAR(255)    DEFAULT NULL,
+    p1_done_by          VARCHAR(20)     DEFAULT NULL,
+    p1_done_at          DATETIME        DEFAULT NULL,
+
+    -- P2 — HOD Confirmation
+    p2_decision         VARCHAR(10)     DEFAULT NULL,
+    p2_remarks          TEXT            DEFAULT NULL,
+    p2_attachment       VARCHAR(255)    DEFAULT NULL,
+    p2_done_by          VARCHAR(20)     DEFAULT NULL,
+    p2_done_at          DATETIME        DEFAULT NULL,
+
+    -- P3 — Update Exit Details
+    p3_remarks          TEXT            DEFAULT NULL,
+    p3_attachment       VARCHAR(255)    DEFAULT NULL,
+    p3_done_by          VARCHAR(20)     DEFAULT NULL,
+    p3_done_at          DATETIME        DEFAULT NULL,
+
+    -- P4 — Mail System Team for Task Transfer
+    p4_status           VARCHAR(20)     DEFAULT NULL,
+    p4_remarks          TEXT            DEFAULT NULL,
+    p4_attachment       VARCHAR(255)    DEFAULT NULL,
+    p4_done_by          VARCHAR(20)     DEFAULT NULL,
+    p4_done_at          DATETIME        DEFAULT NULL,
+
+    -- P5 — Share Exit Interview Link
+    p5_remarks          TEXT            DEFAULT NULL,
+    p5_attachment       VARCHAR(255)    DEFAULT NULL,
+    p5_done_by          VARCHAR(20)     DEFAULT NULL,
+    p5_done_at          DATETIME        DEFAULT NULL,
+
+    -- P6 — Handover Doc + Asset / Clearance
+    p6_remarks          TEXT            DEFAULT NULL,
+    p6_attachment       VARCHAR(255)    DEFAULT NULL,
+    p6_done_by          VARCHAR(20)     DEFAULT NULL,
+    p6_done_at          DATETIME        DEFAULT NULL,
+
+    -- P7 — Issue Release + Experience Letter
+    p7_remarks          TEXT            DEFAULT NULL,
+    p7_attachment       VARCHAR(255)    DEFAULT NULL,
+    p7_done_by          VARCHAR(20)     DEFAULT NULL,
+    p7_done_at          DATETIME        DEFAULT NULL,
+
+    -- P8 — Mark Employee Inactive
+    p8_remarks          TEXT            DEFAULT NULL,
+    p8_attachment       VARCHAR(255)    DEFAULT NULL,
+    p8_done_by          VARCHAR(20)     DEFAULT NULL,
+    p8_done_at          DATETIME        DEFAULT NULL,
+
+    -- P9 — Reject Resignation
+    p9_remarks          TEXT            DEFAULT NULL,
+    p9_attachment       VARCHAR(255)    DEFAULT NULL,
+    p9_done_by          VARCHAR(20)     DEFAULT NULL,
+    p9_done_at          DATETIME        DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 2. exit_stage_log ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS fms_exit_process_annex.exit_stage_log (
+    id                  INT             NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    exit_request_id     INT             NOT NULL,
+    stage               VARCHAR(10)     NOT NULL,
+    action              TEXT            DEFAULT NULL,
+    done_by             VARCHAR(20)     DEFAULT NULL,
+    remarks             TEXT            DEFAULT NULL,
+    attachment          VARCHAR(255)    DEFAULT NULL,
+    done_at             DATETIME        DEFAULT NOW(),
+
+    INDEX idx_exit_request_id (exit_request_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 3. exit_attachments ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS fms_exit_process_annex.exit_attachments (
+    id              INT             NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    token           VARCHAR(64)     NOT NULL UNIQUE,
+    filename        VARCHAR(255)    NOT NULL,
+    mimetype        VARCHAR(100)    NOT NULL,
+    filedata        LONGBLOB        NOT NULL,
+    uploaded_at     DATETIME        DEFAULT NOW()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 4. tasks ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS fms_exit_process_annex.tasks (
+    task_id             INT             NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    task_name           VARCHAR(255)    DEFAULT NULL UNIQUE,
+    current_stage       VARCHAR(10)     DEFAULT NULL,
+    from_stage          VARCHAR(10)     DEFAULT NULL,
+    status              ENUM('PENDING','COMPLETE')
+                                        NOT NULL DEFAULT 'PENDING',
+    remark              TEXT            DEFAULT NULL,
+    attachment_path     VARCHAR(255)    DEFAULT NULL,
+    planned_end_time    DATETIME        DEFAULT NULL,
+    `1st_planned_end_time` DATETIME     DEFAULT NULL,
+    submit_emp_id       VARCHAR(255)    DEFAULT NULL,
+    emp_id              VARCHAR(255)    DEFAULT NULL,
+    emp_name            VARCHAR(255)    DEFAULT NULL,
+    actual_emp_id       VARCHAR(255)    DEFAULT NULL,
+    location            VARCHAR(255)    DEFAULT NULL,
+    hod_id              VARCHAR(255)    DEFAULT NULL,
+    hod_name            VARCHAR(255)    DEFAULT NULL,
+    actual_time         DATETIME        DEFAULT NULL,
+    created_at          DATETIME        DEFAULT CURRENT_TIMESTAMP,
+    allocate_to         VARCHAR(255)    DEFAULT NULL,
+    allocate_emp_id     VARCHAR(255)    DEFAULT NULL,
+    created_emp_id      VARCHAR(255)    DEFAULT NULL,
+    project             VARCHAR(255)    DEFAULT NULL,
+    task_details        VARCHAR(500)    DEFAULT NULL,
+    pc_update_stage     VARCHAR(10)     DEFAULT NULL,
+    fms_name            VARCHAR(50)     DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 5. task_updates ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS fms_exit_process_annex.task_updates (
+    update_id           INT             NOT NULL PRIMARY KEY,
+    task_id             INT             DEFAULT NULL,
+    task_name           VARCHAR(255)    DEFAULT NULL,
+    from_stage          VARCHAR(10)     DEFAULT NULL,
+    to_stage            VARCHAR(10)     DEFAULT NULL,
+    remark              TEXT            DEFAULT NULL,
+    attachment_path     VARCHAR(255)    DEFAULT NULL,
+    planned_end_time    DATETIME        DEFAULT NULL,
+    decision            VARCHAR(10)     DEFAULT NULL,
+    emp_id              VARCHAR(50)     DEFAULT NULL,
+    actual_time         DATETIME        DEFAULT NULL,
+    allocate_to         VARCHAR(255)    DEFAULT NULL,
+    allocate_emp_id     VARCHAR(50)     DEFAULT NULL,
+    project             VARCHAR(255)    DEFAULT NULL,
+    fms_name            VARCHAR(50)     DEFAULT NULL,
+
+    INDEX idx_task_id (task_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
