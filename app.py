@@ -153,8 +153,8 @@ def dashboard():
     cur.execute("""
         SELECT
             COUNT(*)                                                  AS total,
-            SUM(CASE WHEN status='OPEN'      THEN 1 ELSE 0 END)     AS open_count,
-            SUM(CASE WHEN status='CLOSED'    THEN 1 ELSE 0 END)     AS closed_count,
+            SUM(CASE WHEN status='PENDING'      THEN 1 ELSE 0 END)     AS open_count,
+            SUM(CASE WHEN status='COMPLETE'    THEN 1 ELSE 0 END)     AS closed_count,
             SUM(CASE WHEN status='REJECTED'  THEN 1 ELSE 0 END)     AS rejected_count,
             0 AS parallel_count
         FROM fms_exit_process_annex.exit_requests
@@ -424,6 +424,33 @@ def fms_hr_exit_calculate_deadline_days(start_dt, n_working_days, location=None)
     return fms_hr_exit__day_end(d)
 
 
+def fms_hr_exit_deadline_on_exit_day(date_of_exit, target_time, location=None):
+    """
+    Return a deadline datetime on or after date_of_exit at target_time,
+    respecting holidays and Saturday end time.
+    - If date_of_exit is a Sunday or holiday → roll to next working day, use day_end.
+    - If date_of_exit is a Saturday and target_time > SATURDAY_END → use SATURDAY_END.
+    - Otherwise → use target_time but cap at day_end.
+    """
+    from datetime import date as _date
+    holidays = fms_hr_exit__fetch_holidays(location)
+    d = date_of_exit if isinstance(date_of_exit, _date.__class__) else date_of_exit
+
+    # Roll forward if not a working day
+    while not fms_hr_exit__is_working_day(d, holidays):
+        d += timedelta(days=1)
+
+    day_end = fms_hr_exit__day_end(d)
+
+    # Cap target_time to day_end for that day
+    candidate = datetime.combine(d, target_time)
+    if candidate > day_end:
+        candidate = day_end
+
+    return candidate
+
+
+
 def fms_hr_exit_get_default_photo(photo_link):
     return photo_link if photo_link else "images/placeholder-user.png"
 
@@ -527,107 +554,136 @@ fms_hr_exit_FMS_PROJECT = 'HR Exit Process'
 fms_hr_exit_FMS_NAME    = 'fms_hr_exit_process_annex'
 
 fms_hr_exit_STAGE_STATUS_MAP = {
-    'P1': 'OPEN', 'P2': 'OPEN', 'P3': 'OPEN', 'P4': 'OPEN',
-    'P5': 'OPEN', 'P6': 'OPEN', 'P7': 'OPEN',
-    'P8': 'CLOSED', 'P9': 'REJECTED',
+    'P1': 'PENDING', 'P2': 'PENDING', 'P3': 'PENDING', 'P4': 'PENDING',
+    'P5': 'PENDING', 'P6': 'PENDING', 'P7': 'PENDING',
+    'P8': 'COMPLETE', 'P9': 'REJECTED',
 }
 
 
 def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, emp_id,
-             remarks=None, attachment=None, planned_end_time=None,
-             decision=None, allocate_to=None, allocate_emp_id=None):
+                         remarks=None, attachment=None, planned_end_time=None,
+                         decision=None, allocate_to=None, allocate_emp_id=None):
     try:
+        # ── 1. Get a fresh cursor from the active connection ──────────────────
         conn = main_cur.connection if hasattr(main_cur, 'connection') else mysql.connection
         cur  = conn.cursor(DictCursor)
 
+        # ── 2. Fetch exit request + employee location ─────────────────────────
         cur.execute("""
-            SELECT er.id, er.employee_code, er.employee_name,
-                   er.hod, er.hod_id, er.reporting_doer, er.reporting_doer_id,
-                   er.department, er.date_of_exit, er.created_by,
-                   COALESCE(em.Location, '') AS location
-            FROM fms_exit_process_annex.exit_requests er
+            SELECT er.id,
+                   er.employee_code,
+                   er.employee_name,
+                   er.hod,
+                   er.hod_id,
+                   er.reporting_doer,
+                   er.reporting_doer_id,
+                   er.department,
+                   er.date_of_exit,
+                   er.created_by,
+                   COALESCE(em.Location, \'\') AS location
+            FROM   fms_exit_process_annex.exit_requests er
             LEFT JOIN alcovedb_2024.Employee_Master em
                    ON er.employee_code COLLATE utf8mb4_unicode_ci
                     = em.Emp_Code      COLLATE utf8mb4_unicode_ci
-            WHERE er.id = %s
+            WHERE  er.id = %s
         """, (req_id,))
         er = cur.fetchone()
         if not er:
-            cur.close(); return
+            cur.close()
+            return
 
-        task_name   = str(er['id'])
-        status      = fms_hr_exit_STAGE_STATUS_MAP.get(to_stage, 'OPEN')
-        task_detail = to_stage
-        created_emp = er.get('created_by') or emp_id
+        # ── 3. Build field values ─────────────────────────────────────────────
+        wf          = fms_hr_exit_WORKFLOW_HELP.get(to_stage, {})
+        who         = wf.get('who', '')
+        what        = wf.get('what', '')
+
+        # task_name  → "REQ-{id} | Who — What"  (unique per request + stage)
+        task_name   = f"REQ-{er['id']} | {who} — {what}" if (who or what) else str(er['id'])
+
+        # task_details → "Who — What"
+        task_detail = f"{who} — {what}" if (who or what) else to_stage
+
+        # fms_name (fms step) → process number only e.g. "P1"
+        fms_step    = to_stage
+
+        # status → must match tasks enum: PENDING / COMPLETE
+        status      = fms_hr_exit_STAGE_STATUS_MAP.get(to_stage, 'PENDING')
+
+        # planned_end_time → full datetime string "YYYY-MM-DD HH:MM:SS"
         eff_planned = planned_end_time
         if eff_planned is None and er.get('date_of_exit'):
-            eff_planned = datetime.combine(er['date_of_exit'], datetime.min.time())
+            eff_planned = fms_hr_exit_deadline_on_exit_day(er['date_of_exit'], dt_time(17, 0), er.get('location'))
+        if isinstance(eff_planned, datetime):
+            eff_planned = eff_planned.strftime('%Y-%m-%d %H:%M:%S')
 
+        created_emp  = er.get('created_by') or emp_id
+        alloc_to     = allocate_to     or er.get('reporting_doer',    '')
+        alloc_emp_id = allocate_emp_id or er.get('reporting_doer_id', '')
+
+        # ── 4. INSERT a fresh row for every stage transition ──────────────────
         cur.execute("""
             INSERT INTO fms_exit_process_annex.tasks
                 (task_name, current_stage, from_stage, status,
                  remark, attachment_path, planned_end_time, `1st_planned_end_time`,
                  submit_emp_id, emp_id, emp_name,
                  hod_id, hod_name,
-                 actual_time, allocate_to, allocate_emp_id,
+                 actual_time,
+                 allocate_to, allocate_emp_id,
                  created_emp_id, project, task_details,
                  pc_update_stage, fms_name, location)
-            VALUES (%s,%s,%s,%s, %s,%s,%s,%s, %s,%s,%s, %s,%s,
-                    NOW(),%s,%s, %s,%s,%s, %s,%s,%s)
-            ON DUPLICATE KEY UPDATE
-                current_stage    = VALUES(current_stage),
-                from_stage       = VALUES(from_stage),
-                status           = VALUES(status),
-                remark           = VALUES(remark),
-                attachment_path  = VALUES(attachment_path),
-                planned_end_time = VALUES(planned_end_time),
-                submit_emp_id    = VALUES(submit_emp_id),
-                emp_id           = VALUES(emp_id),
-                emp_name         = VALUES(emp_name),
-                actual_time      = NOW(),
-                allocate_to      = VALUES(allocate_to),
-                allocate_emp_id  = VALUES(allocate_emp_id),
-                hod_id           = VALUES(hod_id),
-                hod_name         = VALUES(hod_name),
-                pc_update_stage  = VALUES(pc_update_stage),
-                task_details     = VALUES(task_details),
-                location         = VALUES(location)
+            VALUES
+                (%s, %s, %s, %s,
+                 %s, %s, %s, %s,
+                 %s, %s, %s,
+                 %s, %s,
+                 NOW(),
+                 %s, %s,
+                 %s, %s, %s,
+                 %s, %s, %s)
         """, (
-            task_name, to_stage, from_stage, status,
-            remarks, attachment, eff_planned, eff_planned,
-            emp_id, emp_id, er['employee_name'],
-            er.get('hod_id', ''), er.get('hod', ''),
-            allocate_to or er.get('reporting_doer', ''),
-            allocate_emp_id or er.get('reporting_doer_id', ''),
+            task_name,   to_stage,    from_stage,  status,
+            remarks,     attachment,  eff_planned, eff_planned,
+            emp_id,      emp_id,      er['employee_name'],
+            er.get('hod_id', ''),     er.get('hod', ''),
+            alloc_to,    alloc_emp_id,
             created_emp, fms_hr_exit_FMS_PROJECT, task_detail,
-            to_stage, fms_hr_exit_FMS_NAME, er.get('location', '')
+            fms_step,    fms_step,    er.get('location', '')
         ))
 
-        cur.execute("SELECT task_id FROM fms_exit_process_annex.tasks WHERE task_name = %s", (task_name,))
-        t = cur.fetchone()
-        if not t:
-            cur.close(); return
-        task_id = t['task_id']
+        # ── 5. Fetch the task_id just inserted ────────────────────────────────
+        task_id = cur.lastrowid
 
-        cur.execute("SELECT COALESCE(MAX(update_id), 0) + 1 AS nxt FROM fms_exit_process_annex.task_updates")
+        # ── 6. Next update_id ─────────────────────────────────────────────────
+        cur.execute("""
+            SELECT COALESCE(MAX(update_id), 0) + 1 AS nxt
+            FROM   fms_exit_process_annex.task_updates
+        """)
         nxt      = cur.fetchone()
         next_uid = int(nxt['nxt']) if nxt else 1
 
+        # ── 7. Insert into task_updates ───────────────────────────────────────
         cur.execute("""
             INSERT INTO fms_exit_process_annex.task_updates
-                (update_id, task_id, task_name, from_stage, to_stage,
+                (update_id, task_id, task_name,
+                 from_stage, to_stage,
                  remark, attachment_path, planned_end_time,
                  decision, emp_id, actual_time,
                  allocate_to, allocate_emp_id,
                  project, fms_name)
-            VALUES (%s,%s,%s,%s,%s, %s,%s,%s, %s,%s,NOW(), %s,%s, %s,%s)
+            VALUES
+                (%s, %s, %s,
+                 %s, %s,
+                 %s, %s, %s,
+                 %s, %s, NOW(),
+                 %s, %s,
+                 %s, %s)
         """, (
-            next_uid, task_id, task_name, from_stage, to_stage,
-            remarks, attachment, eff_planned,
-            decision, emp_id,
-            allocate_to or er.get('reporting_doer', ''),
-            allocate_emp_id or er.get('reporting_doer_id', ''),
-            fms_hr_exit_FMS_PROJECT, fms_hr_exit_FMS_NAME
+            next_uid,    task_id,     task_name,
+            from_stage,  to_stage,
+            remarks,     attachment,  eff_planned,
+            decision,    emp_id,
+            alloc_to,    alloc_emp_id,
+            fms_hr_exit_FMS_PROJECT, fms_step
         ))
 
         cur.close()
@@ -711,7 +767,7 @@ def fms_hr_exit_exit_panel():
             FROM   fms_exit_process_annex.exit_requests er
             LEFT JOIN alcovedb_2024.Employee_Master em
                    ON er.employee_code COLLATE utf8mb4_unicode_ci = em.Emp_Code COLLATE utf8mb4_unicode_ci
-            WHERE  er.status IN ('CLOSED','CANCELLED')
+            WHERE  er.status IN ('COMPLETE','CANCELLED')
             ORDER  BY er.id DESC
         """)
     else:
@@ -723,7 +779,7 @@ def fms_hr_exit_exit_panel():
             FROM   fms_exit_process_annex.exit_requests er
             LEFT JOIN alcovedb_2024.Employee_Master em
                    ON er.employee_code COLLATE utf8mb4_unicode_ci = em.Emp_Code COLLATE utf8mb4_unicode_ci
-            WHERE  er.status IN ('OPEN','REJECTED')
+            WHERE  er.status IN ('PENDING','REJECTED')
             ORDER  BY er.id DESC
         """)
 
@@ -736,8 +792,8 @@ def fms_hr_exit_exit_panel():
 
     cur.execute("""
         SELECT
-            SUM(CASE WHEN status IN ('OPEN','REJECTED') THEN 1 ELSE 0 END) AS pending,
-            SUM(CASE WHEN status='CLOSED'               THEN 1 ELSE 0 END) AS completed,
+            SUM(CASE WHEN status IN ('PENDING','REJECTED') THEN 1 ELSE 0 END) AS pending,
+            SUM(CASE WHEN status='COMPLETE'               THEN 1 ELSE 0 END) AS completed,
             SUM(CASE WHEN status='CANCELLED'            THEN 1 ELSE 0 END) AS rejected,
             0 AS parallel
         FROM fms_exit_process_annex.exit_requests
@@ -821,7 +877,7 @@ def fms_hr_exit_exit_create():
              p1_remarks, p1_attachment, p1_done_by, p1_done_at,
              stage_started_at, deadline_at, created_by, created_at)
         VALUES (%s,%s,%s,%s,%s, %s,%s,%s,%s,
-                'OPEN','P2',
+                'PENDING','P2',
                 %s,%s,%s,NOW(),
                 NOW(),%s,%s,NOW())
     """, (
@@ -879,7 +935,7 @@ def fms_hr_exit_exit_p2_decision(req_id):
                 p2_decision='YES', p2_remarks=%s, p2_attachment=%s,
                 p2_done_by=%s, p2_done_at=NOW(),
                 stage_started_at=NOW(), deadline_at=%s
-            WHERE id=%s AND status='OPEN'
+            WHERE id=%s AND status='PENDING'
         """, (remarks, attach_path, emp_code, deadline, req_id))
         fms_hr_exit_log_stage(cur, req_id, 'P2', 'Resignation accepted by HOD → P3', emp_code, remarks, attach_path)
         fms_hr_exit_fms_sync(cur, req_id, 'P2', 'P3', emp_code,
@@ -893,7 +949,7 @@ def fms_hr_exit_exit_p2_decision(req_id):
                 p2_done_by=%s, p2_done_at=NOW(),
                 p9_remarks=%s, p9_done_by=%s, p9_done_at=NOW(),
                 stage_started_at=NOW(), deadline_at=%s
-            WHERE id=%s AND status='OPEN'
+            WHERE id=%s AND status='PENDING'
         """, (remarks, attach_path, emp_code, remarks, emp_code, p9_deadline, req_id))
         fms_hr_exit_log_stage(cur, req_id, 'P2', 'Resignation rejected by HOD → P9 end', emp_code, remarks, attach_path)
         fms_hr_exit_fms_sync(cur, req_id, 'P2', 'P9', emp_code,
@@ -976,7 +1032,7 @@ def fms_hr_exit_exit_p3_update(req_id):
             p3_done_by=%s, p3_done_at=NOW(),
             p4_status='PENDING',
             stage_started_at=NOW(), deadline_at=%s
-        WHERE id=%s AND status='OPEN'
+        WHERE id=%s AND status='PENDING'
     """, (remarks, attach_path, emp_code, p4_deadline, req_id))
     fms_hr_exit_log_stage(cur2, req_id, 'P3', 'Exit details updated — moving to P4 (Dept HOD: System Team Mail)', emp_code, remarks, attach_path)
     fms_hr_exit_fms_sync(cur2, req_id, 'P3', 'P4', emp_code,
@@ -1004,7 +1060,7 @@ def fms_hr_exit_exit_p5_done(req_id):
     cur = mysql.connection.cursor(DictCursor)
     cur.execute("""
         SELECT date_of_exit FROM fms_exit_process_annex.exit_requests
-        WHERE id=%s AND status='OPEN' AND workflow_stage='P5'
+        WHERE id=%s AND status='PENDING' AND workflow_stage='P5'
     """, (req_id,))
     row = cur.fetchone()
     cur.close()
@@ -1012,7 +1068,7 @@ def fms_hr_exit_exit_p5_done(req_id):
     if not row:
         return redirect(url_for('fms_hr_exit_exit_panel'))
 
-    p6_dl = datetime.combine(row['date_of_exit'], dt_time(14, 0)) if row.get('date_of_exit') else None
+    p6_dl = fms_hr_exit_deadline_on_exit_day(row['date_of_exit'], dt_time(14, 0), row.get('location')) if row.get('date_of_exit') else None
 
     cur2 = mysql.connection.cursor()
     cur2.execute("""
@@ -1052,7 +1108,7 @@ def fms_hr_exit_exit_p4_done(req_id):
     cur = mysql.connection.cursor(DictCursor)
     cur.execute("""
         SELECT date_of_exit FROM fms_exit_process_annex.exit_requests
-        WHERE id=%s AND status='OPEN' AND workflow_stage='P4'
+        WHERE id=%s AND status='PENDING' AND workflow_stage='P4'
     """, (req_id,))
     row = cur.fetchone()
     cur.close()
@@ -1060,7 +1116,7 @@ def fms_hr_exit_exit_p4_done(req_id):
     if not row:
         return redirect(url_for('fms_hr_exit_exit_panel'))
 
-    p5_deadline = datetime.combine(row['date_of_exit'], dt_time(11, 0)) if row.get('date_of_exit') else None
+    p5_deadline = fms_hr_exit_deadline_on_exit_day(row['date_of_exit'], dt_time(11, 0), row.get('location')) if row.get('date_of_exit') else None
 
     cur2 = mysql.connection.cursor()
     cur2.execute("""
@@ -1100,7 +1156,7 @@ def fms_hr_exit_exit_p6_done(req_id):
     cur_dt5 = mysql.connection.cursor(DictCursor)
     cur_dt5.execute("SELECT date_of_exit FROM fms_exit_process_annex.exit_requests WHERE id=%s", (req_id,))
     dt_row5 = cur_dt5.fetchone(); cur_dt5.close()
-    p6_dl = datetime.combine(dt_row5['date_of_exit'], dt_time(16, 0)) if dt_row5 and dt_row5['date_of_exit'] else None
+    p6_dl = fms_hr_exit_deadline_on_exit_day(dt_row5['date_of_exit'], dt_time(16, 0)) if dt_row5 and dt_row5['date_of_exit'] else None
 
     cur = mysql.connection.cursor()
     cur.execute("""
@@ -1109,10 +1165,10 @@ def fms_hr_exit_exit_p6_done(req_id):
             p6_remarks=%s, p6_attachment=%s,
             p6_done_by=%s, p6_done_at=NOW(),
             stage_started_at=NOW(), deadline_at=%s
-        WHERE id=%s AND status='OPEN'
+        WHERE id=%s AND status='PENDING'
     """, (remarks, attach_path, emp_code, p6_dl, req_id))
     fms_hr_exit_log_stage(cur, req_id, 'P6', 'Handover doc + asset clearance done', emp_code, remarks, attach_path)
-    fms_hr_exit_fms_sync(cur, req_id, 'P6', 'P7', emp_code, remarks=remarks, attachment=attach_path)
+    fms_hr_exit_fms_sync(cur, req_id, 'P6', 'P7', emp_code, remarks=remarks, attachment=attach_path, planned_end_time=p6_dl)
     mysql.connection.commit()
     cur.close()
 
@@ -1136,7 +1192,7 @@ def fms_hr_exit_exit_p7_done(req_id):
     cur_dt6 = mysql.connection.cursor(DictCursor)
     cur_dt6.execute("SELECT date_of_exit FROM fms_exit_process_annex.exit_requests WHERE id=%s", (req_id,))
     dt_row6 = cur_dt6.fetchone(); cur_dt6.close()
-    p7_dl = datetime.combine(dt_row6['date_of_exit'], dt_time(17, 0)) if dt_row6 and dt_row6['date_of_exit'] else None
+    p7_dl = fms_hr_exit_deadline_on_exit_day(dt_row6['date_of_exit'], dt_time(17, 0)) if dt_row6 and dt_row6['date_of_exit'] else None
 
     cur = mysql.connection.cursor()
     cur.execute("""
@@ -1145,10 +1201,10 @@ def fms_hr_exit_exit_p7_done(req_id):
             p7_remarks=%s, p7_attachment=%s,
             p7_done_by=%s, p7_done_at=NOW(),
             stage_started_at=NOW(), deadline_at=%s
-        WHERE id=%s AND status='OPEN'
+        WHERE id=%s AND status='PENDING'
     """, (remarks, attach_path, emp_code, p7_dl, req_id))
     fms_hr_exit_log_stage(cur, req_id, 'P7', 'Release letter + experience letter issued', emp_code, remarks, attach_path)
-    fms_hr_exit_fms_sync(cur, req_id, 'P7', 'P8', emp_code, remarks=remarks, attachment=attach_path)
+    fms_hr_exit_fms_sync(cur, req_id, 'P7', 'P8', emp_code, remarks=remarks, attachment=attach_path, planned_end_time=p7_dl)
     mysql.connection.commit()
     cur.close()
 
@@ -1183,16 +1239,20 @@ def fms_hr_exit_exit_p8_done(req_id):
     if row.get('p4_status') != 'DONE':
         return redirect(url_for('fms_hr_exit_exit_panel'))
 
-    cur2 = mysql.connection.cursor()
+    cur2 = mysql.connection.cursor(DictCursor)
+    cur2.execute("SELECT date_of_exit FROM fms_exit_process_annex.exit_requests WHERE id=%s", (req_id,))
+    dt_row8 = cur2.fetchone()
+    p8_dl = fms_hr_exit_deadline_on_exit_day(dt_row8['date_of_exit'], dt_time(17, 0)) if dt_row8 and dt_row8.get('date_of_exit') else None
+
     cur2.execute("""
         UPDATE fms_exit_process_annex.exit_requests
-        SET workflow_stage='P8', status='CLOSED',
+        SET workflow_stage='P8', status='COMPLETE',
             p8_remarks=%s, p8_attachment=%s,
             p8_done_by=%s, p8_done_at=NOW()
         WHERE id=%s
     """, (remarks, attach_path, emp_code, req_id))
     fms_hr_exit_log_stage(cur2, req_id, 'P8', 'Exit process closed — employee marked inactive via HR portal', emp_code, remarks, attach_path)
-    fms_hr_exit_fms_sync(cur2, req_id, 'P8', 'P8', emp_code, remarks=remarks, attachment=attach_path)
+    fms_hr_exit_fms_sync(cur2, req_id, 'P8', 'P8', emp_code, remarks=remarks, attachment=attach_path, planned_end_time=p8_dl)
     mysql.connection.commit()
     cur2.close()
 
@@ -1279,8 +1339,8 @@ def fms_hr_exit_exit_admin_dashboard():
 
     metrics = {
         "total":     len(tasks),
-        "pending":   sum(1 for t in tasks if t['status'] == 'OPEN'),
-        "completed": sum(1 for t in tasks if t['status'] == 'CLOSED'),
+        "pending":   sum(1 for t in tasks if t['status'] == 'PENDING'),
+        "completed": sum(1 for t in tasks if t['status'] == 'COMPLETE'),
         "rejected":  sum(1 for t in tasks if t['status'] in ('REJECTED', 'CANCELLED')),
     }
 

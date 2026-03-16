@@ -299,13 +299,8 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
     <span class="brand-text">FMS <span>HR</span></span>
   </div>
 
-  <div class="nav-center">
-    <a href="{{ url_for('fms_hr_exit_exit_admin_dashboard') }}" class="nav-pill">
-      <i class="fas fa-th-large"></i> Dashboard
-    </a>
-    <a href="{{ url_for('fms_hr_exit_exit_panel') }}" class="nav-pill active">
-      <i class="fas fa-door-open"></i> HR Exit Process
-    </a>
+
+
     {% if is_admin_user %}
     <a href="{{ url_for('fms_hr_exit_exit_admin_dashboard') }}" class="nav-pill"
        style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)">
@@ -315,9 +310,7 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
   </div>
 
   <div class="nav-right">
-    <a href="{{ url_for('fms_hr_exit_exit_admin_dashboard') }}" class="btn-back-dash">
-      <i class="fas fa-arrow-left"></i> Back to Dashboard
-    </a>
+
     <div class="profile-chip" title="{{ person_Accountable }}">
       <img src="{{ url_for('static', filename=photo) if photo else '' }}" alt="Profile"
            onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2216%22 fill=%22%23334155%22/%3E%3Ccircle cx=%2216%22 cy=%2213%22 r=%225%22 fill=%22%2394a3b8%22/%3E%3Cellipse cx=%2216%22 cy=%2226%22 rx=%228%22 ry=%225%22 fill=%22%2394a3b8%22/%3E%3C/svg%3E'">
@@ -1345,6 +1338,7 @@ function loadAllEmployees() {
 }
 
 function positionPortal() {
+  if (!_ddVisible) return;   // don't reposition a hidden dropdown
   var inp  = document.getElementById("empSearch");
   if (!inp) return;
   var rect = inp.getBoundingClientRect();
@@ -1425,6 +1419,8 @@ function selectEmployee(code, active) {
   fetchEmployee(code);
 }
 
+var _modalClosing = false;   // flag: suppress dropdown while modal is tearing down
+
 function clearEmpSelection() {
   var inp = document.getElementById("empSearch");
   if (!inp) return;
@@ -1436,8 +1432,11 @@ function clearEmpSelection() {
   var f = document.getElementById("empFetchBox");   if (f) f.style.display = "none";
   var s = document.getElementById("exitSubmitBtn"); if (s) s.disabled = true;
   _selectedCode = "";
-  inp.focus();
-  openDropdown("");
+  // Only re-focus & re-open if the modal is actually still visible (user pressed Clear inside open modal)
+  if (!_modalClosing) {
+    inp.focus();
+    openDropdown("");
+  }
 }
 
 document.addEventListener("DOMContentLoaded", function(){
@@ -1818,11 +1817,18 @@ $(document).ready(function() {
 
   // Close dropdown immediately when modal starts closing (X, Cancel, backdrop click)
   $('#exitFormModal').on('hide.bs.modal', function(){
+    _modalClosing = true;
     closeDropdown();
   });
 
+  $('#exitFormModal').on('show.bs.modal', function(){
+    _modalClosing = false;
+  });
+
   $('#exitFormModal').on('hidden.bs.modal', function(){
+    closeDropdown();   // belt-and-suspenders: ensure portal is hidden
     clearEmpSelection();
+    _modalClosing = false;   // re-arm for next open
     var f = document.getElementById("exitCreateForm"); if (f) f.reset();
     var fb = document.getElementById("empFetchBox");   if (fb) fb.style.display = "none";
     var sw = document.getElementById("empStatusWarn"); if (sw) sw.style.display = "none";
