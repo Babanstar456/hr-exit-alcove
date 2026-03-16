@@ -644,16 +644,12 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
                 {% elif display_stage == 'P9' %}{% set att = t.p2_attachment or '' %}
                 {% else %}{% set att = '' %}{% endif %}
                 {% if att %}
-                  {% set ext = att.rsplit('.', 1)[-1].lower() %}
-                  {% if ext == 'pdf' %}
-                    <a href="/static/{{ att }}" target="_blank" style="color:#dc2626;font-weight:600">
-                      <i class="fas fa-file-pdf mr-1"></i>View
-                    </a>
-                  {% else %}
-                    <a href="/static/{{ att }}" download style="color:#0284c7;font-weight:600">
-                      <i class="fas fa-paperclip mr-1"></i>File
-                    </a>
-                  {% endif %}
+                  {% set att_token = att[3:] if att.startswith('db:') else att %}
+                  <a href="/uploads/{{ att_token }}" target="_blank"
+                     onclick="event.stopPropagation();"
+                     style="color:#0284c7;font-weight:600;text-decoration:none">
+                    <i class="fas fa-paperclip mr-1"></i>View File
+                  </a>
                 {% else %}
                   <span class="text-muted">—</span>
                 {% endif %}
@@ -702,12 +698,6 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
               <td>
                 <div class="action-group">
 
-                  {# ── View Detail — all roles ── #}
-                  <a href="{{ url_for('fms_hr_exit_exit_detail', req_id=t.id) }}"
-                     class="btn btn-outline-secondary btn-sm" title="View Full Timeline">
-                    <i class="fas fa-eye"></i>
-                  </a>
-
                   {# ════════ P2: HOD Confirmation Decision ════════ #}
                   {% if display_stage == 'P2' and is_hr_staff_user %}
                   <button class="btn btn-warning btn-sm text-dark act-decision-btn"
@@ -715,7 +705,7 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
                     data-title="P2 — HOD Resignation Confirmation"
                     data-prev-label="P1 — Initiation Remarks"
                     data-prev-remarks="{{ t.p1_remarks|e if t.p1_remarks else '' }}"
-                    data-prev-attach="{{ ('static/' ~ t.p1_attachment)|e if t.p1_attachment else '' }}"
+                    data-prev-attach="{{ t.p1_attachment|e if t.p1_attachment else '' }}"
                     data-emp-code="{{ t.employee_code }}">
                     <i class="fas fa-gavel mr-1"></i>HOD Decision
                   </button>
@@ -731,7 +721,7 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
                     data-btn-text="Update & Proceed to P4"
                     data-prev-label="P2 — HOD Confirmation Remarks"
                     data-prev-remarks="{{ t.p2_remarks|e if t.p2_remarks else '' }}"
-                    data-prev-attach="{{ ('static/' ~ t.p2_attachment)|e if t.p2_attachment else '' }}"
+                    data-prev-attach="{{ t.p2_attachment|e if t.p2_attachment else '' }}"
                     data-show-checklist="1"
                     data-checklist-count="3"
                     data-emp-code="{{ t.employee_code }}">
@@ -745,7 +735,7 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
                     style="background:#7c3aed"
                     data-url="/exit/{{ t.id }}/p4_done"
                     data-prev-remarks="{{ t.p3_remarks|e if t.p3_remarks else '' }}"
-                    data-prev-attach="{{ ('static/' ~ t.p3_attachment)|e if t.p3_attachment else '' }}"
+                    data-prev-attach="{{ t.p3_attachment|e if t.p3_attachment else '' }}"
                     data-emp-code="{{ t.employee_code }}">
                     <i class="fas fa-envelope mr-1"></i>Mail System Team
                   </button>
@@ -761,7 +751,7 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
                     data-btn-text="Confirm Interview Link Shared"
                     data-prev-label="P4 — System Team Mail Remarks"
                     data-prev-remarks="{{ t.p4_remarks|e if t.p4_remarks else '' }}"
-                    data-prev-attach="{{ ('static/' ~ t.p4_attachment)|e if t.p4_attachment else '' }}"
+                    data-prev-attach="{{ t.p4_attachment|e if t.p4_attachment else '' }}"
                     data-show-checklist="0"
                     data-emp-code="{{ t.employee_code }}">
                     <i class="fas fa-link mr-1"></i>Share Interview Link
@@ -778,7 +768,7 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
                     data-btn-text="Submit & Move to P7"
                     data-prev-label="P5 — Exit Interview Remarks"
                     data-prev-remarks="{{ t.p5_remarks|e if t.p5_remarks else '' }}"
-                    data-prev-attach="{{ ('static/' ~ t.p5_attachment)|e if t.p5_attachment else '' }}"
+                    data-prev-attach="{{ t.p5_attachment|e if t.p5_attachment else '' }}"
                     data-show-checklist="0"
                     data-emp-code="{{ t.employee_code }}">
                     <i class="fas fa-box-open mr-1"></i>Handover &amp; Clearance
@@ -795,7 +785,7 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
                     data-btn-text="Confirm Letters Issued → Move to P8"
                     data-prev-label="P6 — Handover & Clearance Remarks"
                     data-prev-remarks="{{ t.p6_remarks|e if t.p6_remarks else '' }}"
-                    data-prev-attach="{{ ('static/' ~ t.p6_attachment)|e if t.p6_attachment else '' }}"
+                    data-prev-attach="{{ t.p6_attachment|e if t.p6_attachment else '' }}"
                     data-show-checklist="1"
                     data-checklist-count="3"
                     data-emp-code="{{ t.employee_code }}">
@@ -810,7 +800,7 @@ label { font-size:0.84rem; font-weight:600; color:#374151; margin-bottom:3px; }
                     data-emp-name="{{ t.employee_name|e }}"
                     data-emp-code="{{ t.employee_code }}"
                     data-prev-remarks="{{ t.p7_remarks|e if t.p7_remarks else '' }}"
-                    data-prev-attach="{{ ('static/' ~ t.p7_attachment)|e if t.p7_attachment else '' }}">
+                    data-prev-attach="{{ t.p7_attachment|e if t.p7_attachment else '' }}">
                     <i class="fas fa-user-slash mr-1"></i>Mark Inactive &amp; Close
                   </button>
                   {% endif %}
@@ -1333,6 +1323,7 @@ var _currentMatches = [];
 
 var _portal = document.createElement("div");
 _portal.id  = "empDropdownPortal";
+_portal.addEventListener("mousedown", function(e){ e.stopPropagation(); });
 _portal.innerHTML =
   '<div class="dd-header">' +
     '<span id="ddCountLabel">0 employees</span>' +
@@ -1340,8 +1331,8 @@ _portal.innerHTML =
   '</div>' +
   '<div class="dd-list" id="ddList"></div>';
 // Append inside the modal so it's hidden automatically when modal closes
-var _modalEl = document.getElementById("exitFormModal");
-(_modalEl || document.body).appendChild(_portal);
+// Append to body so it sits above the modal backdrop and never triggers a backdrop-click
+document.body.appendChild(_portal);
 
 var _ddList  = document.getElementById("ddList");
 var _ddCount = document.getElementById("ddCountLabel");
@@ -1490,9 +1481,10 @@ document.addEventListener("DOMContentLoaded", function(){
     } else if (e.key === "Escape") { closeDropdown(); }
   });
   _ddList.addEventListener("mousedown", function(e){
+    e.preventDefault();
+    e.stopPropagation();
     var opt = e.target.closest(".emp-opt");
     if (!opt) return;
-    e.preventDefault();
     selectEmployee(opt.dataset.code, opt.dataset.active === "1");
   });
   clearBtn.addEventListener("click", function(){ clearEmpSelection(); });
@@ -1563,8 +1555,11 @@ function fillPanel(panelId, labelId, remarksId, attachId, labelText, remarks, at
     if (labelId && labelText) document.getElementById(labelId).innerHTML = '<i class="fas fa-history mr-1"></i>' + labelText;
     document.getElementById(remarksId).textContent = remarks ? "Remarks: " + remarks : "No remarks recorded.";
     var aEl = document.getElementById(attachId);
-    aEl.innerHTML = attach
-      ? '<a href="/' + attach + '" target="_blank" download><i class="fas fa-download mr-1"></i>Download Attachment</a>'
+    var attachUrl = attach
+      ? '/uploads/' + (attach.startsWith('db:') ? attach.slice(3) : attach)
+      : '';
+    aEl.innerHTML = attachUrl
+      ? '<a href="' + attachUrl + '" target="_blank" download><i class="fas fa-download mr-1"></i>Download Attachment</a>'
       : '<span class="text-muted">No attachment.</span>';
   } else {
     panel.style.display = "none";
