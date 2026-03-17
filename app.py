@@ -542,7 +542,19 @@ fms_hr_exit_STAGE_STATUS_MAP = {
     'P5': 'PENDING', 'P6': 'PENDING', 'P7': 'PENDING',
     'P8': 'PENDING', 'P9': 'PENDING',   # COMPLETED only after action via close_all_tasks
 }
-
+def fms_hr_exit_get_emp_name(emp_id):
+    try:
+        cur = mysql.connection.cursor(DictCursor)
+        cur.execute("""
+            SELECT Person_Accountable 
+            FROM alcovedb_2024.Employee_Master
+            WHERE Emp_Code=%s
+        """, (emp_id,))
+        row = cur.fetchone()
+        cur.close()
+        return row['Person_Accountable'] if row and row.get('Person_Accountable') else emp_id
+    except:
+        return emp_id
 
 def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, current_user_emp_id,
                          remarks=None, attachment=None, planned_end_time=None,
@@ -575,6 +587,7 @@ def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, current_user_em
         if not er:
             cur.close()
             return
+        actor_name = fms_hr_exit_get_emp_name(current_user_emp_id)
 
         # ── 3. Build field values ─────────────────────────────────────────────
         wf          = fms_hr_exit_WORKFLOW_HELP.get(to_stage, {})
@@ -582,7 +595,7 @@ def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, current_user_em
         what        = wf.get('what', '')
 
         # task_name → one fixed name per request (updated in-place each stage)
-        task_name   = f"REQ-{er['id']} | {er['employee_name']}"
+        task_name = f"Exit Process: {er['employee_name']} (REQ-{er['id']})"
 
         # task_details → current stage description
         task_detail = f"{who} — {what}" if (who or what) else to_stage
@@ -643,7 +656,7 @@ def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, current_user_em
             """, (
                 task_name,              to_stage,               from_stage,             status,
                 remarks,                attachment,             eff_planned,            eff_planned,
-                current_user_emp_id,    current_user_emp_id,    all_doers_str,          er['employee_name'],
+                current_user_emp_id,    current_user_emp_id,    all_doers_str,          actor_name,
                 er.get('hod_id', ''),   er.get('hod', ''),
                 alloc_to,               alloc_emp_id,
                 created_emp,            fms_hr_exit_FMS_PROJECT, task_detail,
@@ -666,6 +679,7 @@ def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, current_user_em
                        submit_emp_id    = %s,
                        actual_emp_id    = %s,
                        emp_id           = %s,
+                       emp_name         = %s,
                        allocate_to      = %s,
                        allocate_emp_id  = %s,
                        task_details     = %s,
