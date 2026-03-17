@@ -125,7 +125,19 @@ def dashboard():
         fixed_menus=fixed_menus, person_Accountable=session['person_Accountable'], emp_code=session['emp_code']
     )
 
-
+    return render_template(
+        'dashboard.html',
+        fixed_menus=fixed_menus,
+        person_Accountable=session['person_Accountable'],
+        emp_code=session['emp_code'],
+        photo=session['photo'],
+        role=role,
+        fms_hr_exit_is_primary=fms_hr_exit_is_primary(emp_code),
+        fms_hr_exit_is_secondary=fms_hr_exit_is_secondary(emp_code),
+        is_admin_user=fms_hr_exit_is_admin(emp_code),
+        is_dept_hod_user=(role == 'dept_hod'),
+        is_hr_staff_user=fms_hr_exit_is_hr_staff(emp_code),
+    )
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
@@ -528,7 +540,7 @@ fms_hr_exit_FMS_NAME    = 'hr_exit_process'
 fms_hr_exit_STAGE_STATUS_MAP = {
     'P1': 'PENDING', 'P2': 'PENDING', 'P3': 'PENDING', 'P4': 'PENDING',
     'P5': 'PENDING', 'P6': 'PENDING', 'P7': 'PENDING',
-    'P8': 'PENDING', 'P9': 'PENDING',   # COMPLETE only after action via close_all_tasks
+    'P8': 'PENDING', 'P9': 'PENDING',   # COMPLETED only after action via close_all_tasks
 }
 
 
@@ -608,7 +620,7 @@ def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, current_user_em
         existing = cur.fetchone()
 
         if existing is None:
-            # ── 5a. P1 INSERT — submit_emp_id=current actor, actual_emp_id=current actor, emp_id=all doers
+            # ── 5a. P1 — INSERT the one-and-only task row for this request ────
             cur.execute("""
                 INSERT INTO fms_exit_process_annex.tasks
                     (task_name, current_stage, from_stage, status,
@@ -640,8 +652,7 @@ def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, current_user_em
             task_id = cur.lastrowid
 
         else:
-            # ── 5b. UPDATE — current_stage=to_stage, from_stage, pc_update_stage=to_stage
-            # submit_emp_id=current actor, actual_emp_id=current actor, emp_id=all doers
+            # ── 5b. P2–P7 — UPDATE the existing task row with new stage ───────
             task_id = existing['task_id']
             cur.execute("""
                 UPDATE fms_exit_process_annex.tasks
@@ -731,7 +742,7 @@ def fms_hr_exit_close_all_tasks(main_cur, req_id, current_user_emp_id, remarks, 
         )
         all_doers_str = ','.join(all_doer_ids)
         close_remark  = remarks or f"Process closed at stage {final_stage}"
-        final_status  = 'COMPLETE'   # always COMPLETE — this runs only after P8/P9 action is taken
+        final_status  = 'COMPLETED'   # always — runs only after P8/P9 action is taken
 
         # ── 2. Fetch the single task row for this request ─────────────────────
         cur.execute("""
@@ -756,7 +767,7 @@ def fms_hr_exit_close_all_tasks(main_cur, req_id, current_user_emp_id, remarks, 
         if isinstance(planned, datetime):
             planned = planned.strftime('%Y-%m-%d %H:%M:%S')
 
-        # ── 3. UPDATE tasks → COMPLETE after P8/P9 action ────────────────────
+        # ── 3. UPDATE tasks → COMPLETED after P8/P9 action ─────────────────
         cur.execute("""
             UPDATE fms_exit_process_annex.tasks
             SET    status           = %s,
@@ -892,7 +903,7 @@ def fms_hr_exit_exit_panel():
             FROM   fms_exit_process_annex.exit_requests er
             LEFT JOIN alcovedb_2024.Employee_Master em
                    ON er.employee_code COLLATE utf8mb4_unicode_ci = em.Emp_Code COLLATE utf8mb4_unicode_ci
-            WHERE  er.status IN ('COMPLETE','CANCELLED')
+            WHERE  er.status IN ('COMPLETED','CANCELLED')
             ORDER  BY er.id DESC
         """)
     else:
@@ -918,7 +929,7 @@ def fms_hr_exit_exit_panel():
     cur.execute("""
         SELECT
             SUM(CASE WHEN status IN ('PENDING','REJECTED') THEN 1 ELSE 0 END) AS pending,
-            SUM(CASE WHEN status='COMPLETE'               THEN 1 ELSE 0 END) AS completed,
+            SUM(CASE WHEN status='COMPLETED'               THEN 1 ELSE 0 END) AS completed,
             SUM(CASE WHEN status='CANCELLED'            THEN 1 ELSE 0 END) AS rejected,
             0 AS parallel
         FROM fms_exit_process_annex.exit_requests
@@ -1386,7 +1397,7 @@ def fms_hr_exit_exit_p8_done(req_id):
 
     cur2.execute("""
         UPDATE fms_exit_process_annex.exit_requests
-        SET workflow_stage='P8', status='COMPLETE',
+        SET workflow_stage='P8', status='COMPLETED',
             p8_remarks=%s, p8_attachment=%s,
             p8_done_by=%s, p8_done_at=NOW()
         WHERE id=%s
@@ -1480,7 +1491,7 @@ def fms_hr_exit_exit_admin_dashboard():
     metrics = {
         "total":     len(tasks),
         "pending":   sum(1 for t in tasks if t['status'] == 'PENDING'),
-        "completed": sum(1 for t in tasks if t['status'] == 'COMPLETE'),
+        "completed": sum(1 for t in tasks if t['status'] == 'COMPLETED'),
         "rejected":  sum(1 for t in tasks if t['status'] in ('REJECTED', 'CANCELLED')),
     }
 
