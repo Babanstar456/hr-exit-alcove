@@ -12,35 +12,20 @@ import os
 import uuid
 from datetime import datetime, timedelta, time as dt_time
 
-# ================================== App + DB Config ==========================================
-
 app = Flask(__name__)
 app.secret_key = "secret_key_here"
 
-
-app.config['MYSQL_HOST']     = 'localhost'
-app.config['MYSQL_USER']     = 'root'
+app.config['MYSQL_HOST'] = 'localhost'
+app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = 'Alcove@123'
-app.config['MYSQL_DB']       = 'alcovedb_2024'
-
-app.config['MYSQL_CHARSET']  = 'utf8mb4'
-app.config['MYSQL_CUSTOM_OPTIONS'] = {
-    'charset': 'utf8mb4',
-    'collation': 'utf8mb4_unicode_ci',
-    'init_command': 'SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci, '
-                    'collation_connection = utf8mb4_unicode_ci, '
-                    'collation_database   = utf8mb4_unicode_ci'
-}
+app.config['MYSQL_DB'] = 'alcovedb_2024'
 
 app.config['PROFILE_PHOTO_FOLDER'] = 'static/uploads/profile_photos'
 
 mysql = MySQL(app)
 
-fms_hr_exit__COLLATION_SQL = (
-    "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci; "
-    "SET collation_connection = utf8mb4_unicode_ci; "
-    "SET collation_database   = utf8mb4_unicode_ci"
-)
+# =====================================Config Folders (Attachments or others )==========================================
+# ======================================Other Functions(helpers) =======================================================
 
 def get_default_photo(photo_link):
     return photo_link if photo_link else "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSosHI4JH3vNxpQnFvuWx7OJY84XotRh9_h-g&s"
@@ -51,6 +36,7 @@ def allowed_file(filename):
         filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'webp'}
     )
 
+# ================================= Login, Dashboard, uploadphoto, logout, forgot_password==============================
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -65,40 +51,24 @@ def login():
         cur.close()
 
         if user and user[1] == password:
-            dept_hod_ids  = fms_hr_exit__get_all_dept_hod_ids()
-            is_a_dept_hod = emp_code in dept_hod_ids
-
             session['emp_code'] = user[0]
             session['designation'] = user[2]
             session['department'] = user[3]
             session['admin'] = user[4]
-            session['photo'] = fms_hr_exit_get_default_photo(user[5])
+            session['photo'] = get_default_photo(user[5])
             session['email'] = user[6]
             session['contact'] = user[7]
             session['user_Access'] = user[8]
             session['person_Accountable'] = user[9]
             session['Reporting_DOER'] = user[10]
-            session['role'] = (
-                'admin'      if emp_code in fms_hr_exit_ADMIN_IDS
-                else 'primary'   if emp_code in fms_hr_exit_PRIMARY_DOER_IDS
-                else 'secondary' if emp_code in fms_hr_exit_SECONDARY_DOER_IDS
-                else 'dept_hod'  if is_a_dept_hod
-                else 'employee'
-            )
             print("Debug in if  ")
-            if session['role'] in ('admin', 'primary', 'secondary', 'dept_hod'):
-                return redirect(url_for('fms_hr_exit_exit_panel'))
-            else:
-                return redirect(url_for('dashboard') + '?no_tasks=1')
+            return redirect(url_for('dashboard'))
         else:
             flash('Invalid Credentials', 'danger')
             print("Debug in else  ")
             return render_template('login.html')
 
     return render_template('login.html')
-
-
-# ================================== Upload Profile Photo =====================================
 
 @app.route('/upload_photo', methods=['POST'])
 def upload_photo():
@@ -115,14 +85,16 @@ def upload_photo():
         flash('Invalid file type', 'danger')
         return redirect(url_for('dashboard'))
 
-    ext           = file.filename.rsplit('.', 1)[1].lower()
-    filename      = secure_filename(f"{session['emp_code']}.{ext}")
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    filename = secure_filename(f"{session['emp_code']}.{ext}")
+
     upload_folder = app.config['PROFILE_PHOTO_FOLDER']
     os.makedirs(upload_folder, exist_ok=True)
 
     file_path = os.path.join(upload_folder, filename)
     try:
         file.save(file_path)
+        # print("FIle Saved Successfully ")
     except Exception as e:
         print(e)
 
@@ -138,64 +110,30 @@ def upload_photo():
     flash('Profile photo updated', 'success')
     return redirect(url_for('dashboard'))
 
-
-# ================================== Dashboard ================================================
-
 @app.route('/dashboard')
 def dashboard():
     if 'emp_code' not in session:
         return redirect(url_for('login'))
-
-    emp_code = session['emp_code']
-    role     = session.get('role')
-
-    cur = mysql.connection.cursor(DictCursor)
-    cur.execute("""
-        SELECT
-            COUNT(*)                                                  AS total,
-            SUM(CASE WHEN status='PENDING'      THEN 1 ELSE 0 END)     AS open_count,
-            SUM(CASE WHEN status='COMPLETE'    THEN 1 ELSE 0 END)     AS closed_count,
-            SUM(CASE WHEN status='REJECTED'  THEN 1 ELSE 0 END)     AS rejected_count,
-            0 AS parallel_count
-        FROM fms_exit_process_annex.exit_requests
-    """)
-    metrics = cur.fetchone() or {}
-    cur.close()
-
+    # =========================== Fixed Menus that will be shown on the left hand side side bar=========================
     fixed_menus = {
         "HR Exit Process": [
             ("Exit Process Panel", url_for('fms_hr_exit_exit_panel')),
-        ]
+        ],
     }
-    if fms_hr_exit_is_admin(emp_code):
-        fixed_menus["HR Exit Process"].append(
-            ("Admin Dashboard", url_for('fms_hr_exit_exit_admin_dashboard'))
-        )
     return render_template(
         'dashboard.html',
-        fixed_menus=fixed_menus,
-        person_Accountable=session['person_Accountable'],
-        emp_code=emp_code,
-        photo=session['photo'],
-        role=role,
-        metrics=metrics,
-        fms_hr_exit_is_primary=fms_hr_exit_is_primary(emp_code),
-        fms_hr_exit_is_secondary=fms_hr_exit_is_secondary(emp_code),
-        is_admin_user=fms_hr_exit_is_admin(emp_code),
-        is_dept_hod_user=(role == 'dept_hod'),
-        is_hr_staff_user=fms_hr_exit_is_hr_staff(emp_code),
+        fixed_menus=fixed_menus, person_Accountable=session['person_Accountable'], emp_code=session['emp_code']
     )
 
 
-# ================================== Forgot Password ==========================================
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
-    emp_code = session.get('emp_code', '')
-    is_logged_in = 'readonly' if emp_code else ''
+    emp_code = session.get('emp_code', '')  # Prefill if logged in
+    is_logged_in = 'readonly' if emp_code else ''  # Set read-only if logged in
 
     if request.method == 'POST':
-        emp_code     = request.form['emp_code']
+        emp_code = request.form['emp_code']
         old_password = request.form['old_password']
         new_password = request.form['new_password']
 
@@ -211,9 +149,13 @@ def forgot_password():
             flash('Old password is incorrect!', 'danger')
             return redirect(url_for('forgot_password'))
 
+        # Update the password in the Employee_Master table
         cur.execute("UPDATE Employee_Master SET password=%s WHERE Emp_Code=%s", (new_password, emp_code))
+
+        # Insert a record into the Password_Records table to keep history
         cur.execute("INSERT INTO Password_Records (Emp_Code, New_Password) VALUES (%s, %s)",
                     (emp_code, new_password))
+
         mysql.connection.commit()
         cur.close()
 
@@ -222,13 +164,14 @@ def forgot_password():
 
     return render_template('forgot_password.html', emp_code=emp_code, is_logged_in=is_logged_in)
 
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
-# ================================== Logout ===================================================
-
+#=========================================SERVER CODE FMS HR EXIT==================================================
 
 # ================================== Serve Uploaded Files =====================================
-
-# Attachments stored in DB — no upload folder needed on disk
 
 @app.route('/uploads/<path:token>')
 def uploaded_file(token):
@@ -254,15 +197,11 @@ def uploaded_file(token):
         print(f"[SERVE ERROR] {e}")
         abort(500)
 
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
-
-
-#=========================================SERVER CODE FMS HR EXIT==================================================
-
+fms_hr_exit__COLLATION_SQL = (
+    "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci; "
+    "SET collation_connection = utf8mb4_unicode_ci; "
+    "SET collation_database   = utf8mb4_unicode_ci"
+)
 def fms_hr_exit__fix_collation():
     conn = mysql.connection
     for stmt in fms_hr_exit__COLLATION_SQL.split(';'):
@@ -280,6 +219,15 @@ def fms_hr_exit_before_request_collation():
         fms_hr_exit__fix_collation()
     except Exception:
         pass
+
+@app.before_request
+def fms_hr_exit_before_request_role():
+    emp_code = session.get('emp_code')
+    if emp_code and 'role' not in session:
+        try:
+            fms_hr_exit_get_session_role(emp_code)
+        except Exception:
+            pass
 
 # ================================== Role / Access Config =====================================
 
@@ -540,6 +488,30 @@ def fms_hr_exit_can_access_exit(emp_code):
     return (emp_code in fms_hr_exit_EXIT_ALL_ACCESS) or (session.get('role') == 'dept_hod')
 
 
+def fms_hr_exit_get_session_role(emp_code):
+    """
+    Resolve and cache the FMS role for the given emp_code into session['role'].
+    Called lazily on first access (e.g. dashboard, exit panel) rather than at login,
+    so that the login route stays app-agnostic.
+    Returns the resolved role string.
+    """
+    if 'role' in session:
+        return session['role']
+
+    dept_hod_ids  = fms_hr_exit__get_all_dept_hod_ids()
+    is_a_dept_hod = emp_code in dept_hod_ids
+
+    role = (
+        'admin'      if emp_code in fms_hr_exit_ADMIN_IDS
+        else 'primary'   if emp_code in fms_hr_exit_PRIMARY_DOER_IDS
+        else 'secondary' if emp_code in fms_hr_exit_SECONDARY_DOER_IDS
+        else 'dept_hod'  if is_a_dept_hod
+        else 'employee'
+    )
+    session['role'] = role
+    return role
+
+
 # ================================== Stage Log + FMS Sync =====================================
 
 def fms_hr_exit_log_stage(cur, exit_request_id, stage, action, done_by, remarks, attachment):
@@ -550,17 +522,17 @@ def fms_hr_exit_log_stage(cur, exit_request_id, stage, action, done_by, remarks,
     """, (exit_request_id, stage, action, done_by, remarks, attachment))
 
 
-fms_hr_exit_FMS_PROJECT = 'HR Exit Process'
-fms_hr_exit_FMS_NAME    = 'fms_hr_exit_process_annex'
+fms_hr_exit_FMS_PROJECT = 'alcove'
+fms_hr_exit_FMS_NAME    = 'hr_exit_process'
 
 fms_hr_exit_STAGE_STATUS_MAP = {
     'P1': 'PENDING', 'P2': 'PENDING', 'P3': 'PENDING', 'P4': 'PENDING',
     'P5': 'PENDING', 'P6': 'PENDING', 'P7': 'PENDING',
-    'P8': 'COMPLETE', 'P9': 'REJECTED',
+    'P8': 'PENDING', 'P9': 'PENDING',   # COMPLETE only after action via close_all_tasks
 }
 
 
-def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, emp_id,
+def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, current_user_emp_id,
                          remarks=None, attachment=None, planned_end_time=None,
                          decision=None, allocate_to=None, allocate_emp_id=None):
     try:
@@ -597,61 +569,105 @@ def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, emp_id,
         who         = wf.get('who', '')
         what        = wf.get('what', '')
 
-        # task_name  → "REQ-{id} | Who — What"  (unique per request + stage)
-        task_name   = f"REQ-{er['id']} | {who} — {what}" if (who or what) else str(er['id'])
+        # task_name → one fixed name per request (updated in-place each stage)
+        task_name   = f"REQ-{er['id']} | {er['employee_name']}"
 
-        # task_details → "Who — What"
+        # task_details → current stage description
         task_detail = f"{who} — {what}" if (who or what) else to_stage
 
-        # fms_name (fms step) → process number only e.g. "P1"
-        fms_step    = to_stage
-
-        # status → must match tasks enum: PENDING / COMPLETE
+        # status → PENDING / COMPLETE / REJECTED
         status      = fms_hr_exit_STAGE_STATUS_MAP.get(to_stage, 'PENDING')
 
-        # planned_end_time → full datetime string "YYYY-MM-DD HH:MM:SS"
+        # planned_end_time
         eff_planned = planned_end_time
         if eff_planned is None and er.get('date_of_exit'):
             eff_planned = fms_hr_exit_deadline_on_exit_day(er['date_of_exit'], dt_time(17, 0), er.get('location'))
         if isinstance(eff_planned, datetime):
             eff_planned = eff_planned.strftime('%Y-%m-%d %H:%M:%S')
 
-        created_emp  = er.get('created_by') or emp_id
+        created_emp  = er.get('created_by') or current_user_emp_id
         alloc_to     = allocate_to     or er.get('reporting_doer',    '')
         alloc_emp_id = allocate_emp_id or er.get('reporting_doer_id', '')
 
-        # ── 4. INSERT a fresh row for every stage transition ──────────────────
-        cur.execute("""
-            INSERT INTO fms_exit_process_annex.tasks
-                (task_name, current_stage, from_stage, status,
-                 remark, attachment_path, planned_end_time, `1st_planned_end_time`,
-                 submit_emp_id, emp_id, emp_name,
-                 hod_id, hod_name,
-                 actual_time,
-                 allocate_to, allocate_emp_id,
-                 created_emp_id, project, task_details,
-                 pc_update_stage, fms_name, location)
-            VALUES
-                (%s, %s, %s, %s,
-                 %s, %s, %s, %s,
-                 %s, %s, %s,
-                 %s, %s,
-                 NOW(),
-                 %s, %s,
-                 %s, %s, %s,
-                 %s, %s, %s)
-        """, (
-            task_name,   to_stage,    from_stage,  status,
-            remarks,     attachment,  eff_planned, eff_planned,
-            emp_id,      emp_id,      er['employee_name'],
-            er.get('hod_id', ''),     er.get('hod', ''),
-            alloc_to,    alloc_emp_id,
-            created_emp, fms_hr_exit_FMS_PROJECT, task_detail,
-            fms_step,    fms_step,    er.get('location', '')
-        ))
+        # ── 4. emp_id = all doers (persistent access list on the task row)
+        #       actual_emp_id / submit_emp_id = current acting user only ────────
+        all_doer_ids = sorted(
+            fms_hr_exit_PRIMARY_DOER_IDS
+            | fms_hr_exit_SECONDARY_DOER_IDS
+            | fms_hr_exit_ADMIN_IDS
+            | ({er['hod_id']} if er.get('hod_id') else set())
+        )
+        all_doers_str = ','.join(all_doer_ids)
 
-        # ── 5. Fetch the task_id just inserted ────────────────────────────────
-        task_id = cur.lastrowid
+        # ── 5. Check if a task row already exists for this request ────────────
+        cur.execute("""
+            SELECT task_id FROM fms_exit_process_annex.tasks
+            WHERE  task_name = %s
+            LIMIT  1
+        """, (task_name,))
+        existing = cur.fetchone()
+
+        if existing is None:
+            # ── 5a. P1 INSERT — submit_emp_id=current actor, actual_emp_id=current actor, emp_id=all doers
+            cur.execute("""
+                INSERT INTO fms_exit_process_annex.tasks
+                    (task_name, current_stage, from_stage, status,
+                     remark, attachment_path, planned_end_time, `1st_planned_end_time`,
+                     submit_emp_id, actual_emp_id, emp_id, emp_name,
+                     hod_id, hod_name,
+                     actual_time,
+                     allocate_to, allocate_emp_id,
+                     created_emp_id, project, task_details,
+                     pc_update_stage, fms_name, location)
+                VALUES
+                    (%s, %s, %s, %s,
+                     %s, %s, %s, %s,
+                     %s, %s, %s, %s,
+                     %s, %s,
+                     NOW(),
+                     %s, %s,
+                     %s, %s, %s,
+                     %s, %s, %s)
+            """, (
+                task_name,              to_stage,               from_stage,             status,
+                remarks,                attachment,             eff_planned,            eff_planned,
+                current_user_emp_id,    current_user_emp_id,    all_doers_str,          er['employee_name'],
+                er.get('hod_id', ''),   er.get('hod', ''),
+                alloc_to,               alloc_emp_id,
+                created_emp,            fms_hr_exit_FMS_PROJECT, task_detail,
+                to_stage,               fms_hr_exit_FMS_NAME,   er.get('location', '')
+            ))
+            task_id = cur.lastrowid
+
+        else:
+            # ── 5b. UPDATE — current_stage=to_stage, from_stage, pc_update_stage=to_stage
+            # submit_emp_id=current actor, actual_emp_id=current actor, emp_id=all doers
+            task_id = existing['task_id']
+            cur.execute("""
+                UPDATE fms_exit_process_annex.tasks
+                SET    current_stage    = %s,
+                       from_stage       = %s,
+                       status           = %s,
+                       remark           = %s,
+                       attachment_path  = %s,
+                       planned_end_time = %s,
+                       actual_time      = NOW(),
+                       submit_emp_id    = %s,
+                       actual_emp_id    = %s,
+                       emp_id           = %s,
+                       allocate_to      = %s,
+                       allocate_emp_id  = %s,
+                       task_details     = %s,
+                       pc_update_stage  = %s
+                WHERE  task_id = %s
+            """, (
+                to_stage,               from_stage,             status,
+                remarks,                attachment,             eff_planned,
+                current_user_emp_id,    current_user_emp_id,    all_doers_str,
+                alloc_to,               alloc_emp_id,
+                task_detail,            to_stage,
+                task_id
+            ))
 
         # ── 6. Next update_id ─────────────────────────────────────────────────
         cur.execute("""
@@ -661,7 +677,7 @@ def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, emp_id,
         nxt      = cur.fetchone()
         next_uid = int(nxt['nxt']) if nxt else 1
 
-        # ── 7. Insert into task_updates ───────────────────────────────────────
+        # ── 7. INSERT task_updates — emp_id = current actor (only actor field in this table)
         cur.execute("""
             INSERT INTO fms_exit_process_annex.task_updates
                 (update_id, task_id, task_name,
@@ -678,18 +694,127 @@ def fms_hr_exit_fms_sync(main_cur, req_id, from_stage, to_stage, emp_id,
                  %s, %s,
                  %s, %s)
         """, (
-            next_uid,    task_id,     task_name,
-            from_stage,  to_stage,
-            remarks,     attachment,  eff_planned,
-            decision,    emp_id,
-            alloc_to,    alloc_emp_id,
-            fms_hr_exit_FMS_PROJECT, fms_step
+            next_uid,               task_id,                task_name,
+            from_stage,             to_stage,
+            remarks,                attachment,             eff_planned,
+            decision,               current_user_emp_id,
+            alloc_to,               alloc_emp_id,
+            fms_hr_exit_FMS_PROJECT, fms_hr_exit_FMS_NAME
         ))
 
         cur.close()
 
     except Exception as exc:
         app.logger.error(f"[FMS] FAILED req={req_id} {from_stage}→{to_stage}: {exc}", exc_info=True)
+
+
+def fms_hr_exit_close_all_tasks(main_cur, req_id, current_user_emp_id, remarks, final_stage):
+    """
+    At P8 (complete) or P9 (rejected): update the task row to COMPLETE /
+    REJECTED and insert a final task_updates row as the closing audit entry.
+    """
+    try:
+        conn = main_cur.connection if hasattr(main_cur, 'connection') else mysql.connection
+        cur  = conn.cursor(DictCursor)
+
+        # ── 1. Rebuild all_doers_str from the exit request ────────────────────
+        cur.execute("""
+            SELECT hod_id FROM fms_exit_process_annex.exit_requests WHERE id = %s
+        """, (req_id,))
+        er_row = cur.fetchone()
+
+        all_doer_ids = sorted(
+            fms_hr_exit_PRIMARY_DOER_IDS
+            | fms_hr_exit_SECONDARY_DOER_IDS
+            | fms_hr_exit_ADMIN_IDS
+            | ({er_row['hod_id']} if er_row and er_row.get('hod_id') else set())
+        )
+        all_doers_str = ','.join(all_doer_ids)
+        close_remark  = remarks or f"Process closed at stage {final_stage}"
+        final_status  = 'COMPLETE'   # always COMPLETE — this runs only after P8/P9 action is taken
+
+        # ── 2. Fetch the single task row for this request ─────────────────────
+        cur.execute("""
+            SELECT task_id, task_name, current_stage, fms_name,
+                   allocate_to, allocate_emp_id, planned_end_time
+            FROM   fms_exit_process_annex.tasks
+            WHERE  task_name LIKE %s
+            LIMIT  1
+        """, (f"REQ-{req_id} |%",))
+        task = cur.fetchone()
+
+        if not task:
+            cur.close()
+            return
+
+        task_id    = task['task_id']
+        task_name  = task['task_name']
+        from_stage = task['current_stage'] or task['fms_name'] or final_stage
+        alloc_to   = task.get('allocate_to', '')
+        alloc_eid  = task.get('allocate_emp_id', '')
+        planned    = task.get('planned_end_time')
+        if isinstance(planned, datetime):
+            planned = planned.strftime('%Y-%m-%d %H:%M:%S')
+
+        # ── 3. UPDATE tasks → COMPLETE after P8/P9 action ────────────────────
+        cur.execute("""
+            UPDATE fms_exit_process_annex.tasks
+            SET    status           = %s,
+                   current_stage    = %s,
+                   from_stage       = %s,
+                   actual_time      = NOW(),
+                   remark           = %s,
+                   submit_emp_id    = %s,
+                   actual_emp_id    = %s,
+                   emp_id           = %s,
+                   task_details     = %s,
+                   pc_update_stage  = %s
+            WHERE  task_id = %s
+        """, (
+            final_status,           final_stage,            from_stage,
+            close_remark,
+            current_user_emp_id,    current_user_emp_id,    all_doers_str,
+            f"Process closed at {final_stage} — {close_remark}",
+            final_stage,            task_id
+        ))
+
+        # ── 4. Next update_id ─────────────────────────────────────────────────
+        cur.execute("""
+            SELECT COALESCE(MAX(update_id), 0) + 1 AS nxt
+            FROM   fms_exit_process_annex.task_updates
+        """)
+        nxt_row  = cur.fetchone()
+        next_uid = int(nxt_row['nxt']) if nxt_row else 1
+
+        # ── 5. INSERT final task_updates row — emp_id = current actor
+        cur.execute("""
+            INSERT INTO fms_exit_process_annex.task_updates
+                (update_id, task_id, task_name,
+                 from_stage, to_stage,
+                 remark, attachment_path, planned_end_time,
+                 decision, emp_id, actual_time,
+                 allocate_to, allocate_emp_id,
+                 project, fms_name)
+            VALUES
+                (%s, %s, %s,
+                 %s, %s,
+                 %s, NULL, %s,
+                 %s, %s, NOW(),
+                 %s, %s,
+                 %s, %s)
+        """, (
+            next_uid,               task_id,                task_name,
+            from_stage,             final_stage,
+            close_remark,           planned,
+            final_status,           current_user_emp_id,
+            alloc_to,               alloc_eid,
+            fms_hr_exit_FMS_PROJECT, fms_hr_exit_FMS_NAME
+        ))
+
+        cur.close()
+
+    except Exception as exc:
+        app.logger.error(f"[FMS] close_all_tasks FAILED req={req_id}: {exc}", exc_info=True)
 
 
 # ================================== AJAX — Fetch Employee ====================================
@@ -844,10 +969,26 @@ def fms_hr_exit_exit_create():
     department        = request.form.get('department', '').strip()
     hod               = request.form.get('hod', '').strip()
     hod_id            = request.form.get('hod_id', '').strip()
-    doj               = request.form.get('doj', '') or None
+    _doj_raw = request.form.get('doj', '').strip()
+    doj = None
+    if _doj_raw:
+        for _fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%m/%d/%Y'):
+            try:
+                doj = datetime.strptime(_doj_raw, _fmt).strftime('%Y-%m-%d')
+                break
+            except ValueError:
+                pass
     reporting_doer    = request.form.get('reporting_doer', '').strip()
     reporting_doer_id = request.form.get('reporting_doer_id', '').strip()
-    date_of_exit      = request.form.get('date_of_exit', '')
+    _doe_raw = request.form.get('date_of_exit', '').strip()
+    date_of_exit = None
+    if _doe_raw:
+        for _fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%m/%d/%Y'):
+            try:
+                date_of_exit = datetime.strptime(_doe_raw, _fmt).strftime('%Y-%m-%d')
+                break
+            except ValueError:
+                pass
     remarks           = request.form.get('remarks', '').strip()
 
     if not employee_code or not date_of_exit:
@@ -982,8 +1123,7 @@ def fms_hr_exit_exit_p9_close(req_id):
     """, (remarks or 'Rejection acknowledged — process closed.', emp_code, req_id))
     fms_hr_exit_log_stage(cur, req_id, 'P9', 'Rejection acknowledged — process fully closed', emp_code,
               remarks or 'Rejection acknowledged.', None)
-    fms_hr_exit_fms_sync(cur, req_id, 'P9', 'P9', emp_code,
-             remarks=remarks or 'Rejection acknowledged — process closed.')
+    fms_hr_exit_close_all_tasks(cur, req_id, emp_code, remarks or 'Rejection acknowledged — process closed.', 'P9')
     mysql.connection.commit()
     cur.close()
 
@@ -1252,7 +1392,7 @@ def fms_hr_exit_exit_p8_done(req_id):
         WHERE id=%s
     """, (remarks, attach_path, emp_code, req_id))
     fms_hr_exit_log_stage(cur2, req_id, 'P8', 'Exit process closed — employee marked inactive via HR portal', emp_code, remarks, attach_path)
-    fms_hr_exit_fms_sync(cur2, req_id, 'P8', 'P8', emp_code, remarks=remarks, attachment=attach_path, planned_end_time=p8_dl)
+    fms_hr_exit_close_all_tasks(cur2, req_id, emp_code, remarks, 'P8')
     mysql.connection.commit()
     cur2.close()
 
@@ -1345,7 +1485,7 @@ def fms_hr_exit_exit_admin_dashboard():
     }
 
     return render_template(
-        'fms_hr_exit_exit_admin_stage_dashboard.html',
+        'exit_admin_stage_dashboard.html',
         tasks=tasks,
         metrics=metrics,
         help_data=fms_hr_exit_WORKFLOW_HELP,
@@ -1408,7 +1548,7 @@ def fms_hr_exit_exit_admin_stage_dashboard():
     query_ms = (time.time() - t0) * 1000
 
     return render_template(
-        'fms_hr_exit_exit_admin_stage_dashboard.html',
+        'exit_admin_stage_dashboard.html',
         tasks=tasks,
         query_ms=query_ms,
         now=datetime.now(),
